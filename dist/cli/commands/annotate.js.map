@@ -1,0 +1,1 @@
+{"version":3,"file":"annotate.js","sourceRoot":"","sources":["../../../src/cli/commands/annotate.ts"],"names":[],"mappings":"AAEA,MAAM,UAAU,uBAAuB,CAAC,OAAgB;IACtD,OAAO;SACJ,OAAO,CAAC,UAAU,CAAC;SACnB,WAAW,CAAC,yBAAyB,CAAC;SACtC,MAAM,CAAC,KAAK,IAAI,EAAE;QACjB,sCAAsC;QACtC,OAAO,CAAC,GAAG,CAAC,+BAA+B,CAAC,CAAC;IAC/C,CAAC,CAAC,CAAC;AACP,CAAC"}

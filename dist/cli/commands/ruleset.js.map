@@ -1,0 +1,1 @@
+{"version":3,"file":"ruleset.js","sourceRoot":"","sources":["../../../src/cli/commands/ruleset.ts"],"names":[],"mappings":"AAEA,MAAM,UAAU,sBAAsB,CAAC,OAAgB;IACrD,OAAO;SACJ,OAAO,CAAC,SAAS,CAAC;SAClB,WAAW,CAAC,wBAAwB,CAAC;SACrC,MAAM,CAAC,KAAK,IAAI,EAAE;QACjB,sCAAsC;QACtC,OAAO,CAAC,GAAG,CAAC,8BAA8B,CAAC,CAAC;IAC9C,CAAC,CAAC,CAAC;AACP,CAAC"}
