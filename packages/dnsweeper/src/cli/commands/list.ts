@@ -24,8 +24,11 @@ export function registerListCommand(program: Command) {
     .option('--desc', 'sort descending', false)
     .option('--format <fmt>', 'table|json|csv', 'table')
     .option('-o, --output <file>', 'output file for json/csv (stdout if omitted)')
+    .option('--show-tls', 'include TLS summary column (table/csv) and field (json)', false)
+    .option('--show-evidence', 'include riskScore and rules summary (table/csv) and fields (json)', false)
+    .option('--show-candidates', 'include SRV/derived candidates summary (table/csv) and field (json)', false)
     .description('List records by minimum risk with optional sorting and output formats')
-    .action(async (input: string, opts: { minRisk: Risk; sort?: string; desc?: boolean; format?: string; output?: string }) => {
+    .action(async (input: string, opts: { minRisk: Risk; sort?: string; desc?: boolean; format?: string; output?: string; showTls?: boolean; showEvidence?: boolean; showCandidates?: boolean }) => {
       const raw = await fs.promises.readFile(input, 'utf8');
       const data = JSON.parse(raw);
       if (!Array.isArray(data)) {
@@ -47,17 +50,29 @@ export function registerListCommand(program: Command) {
       });
       if (opts.desc) records.reverse();
 
-      const rows = records.map((r) => ({
-        domain: String((r as any).domain ?? ''),
-        risk: String((r as any).risk ?? ''),
-        https: (r as any).https?.status ?? '',
-        http: (r as any).http?.status ?? '',
-        dns: (r as any).dns?.status ?? '',
-        skipped: (r as any).skipped ? 'yes' : '',
-        action: (r as any).action ?? '',
-        reason: (r as any).reason ?? '',
-        confidence: typeof (r as any).confidence === 'number' ? (r as any).confidence : '',
-      }));
+      const rows = records.map((r) => {
+        const tlsObj = (r as any).https?.tls || null;
+        const tlsStr = tlsObj ? `${tlsObj.alpn ?? ''}${tlsObj.issuer ? '/' + tlsObj.issuer : ''}` : '';
+        const evidences = Array.isArray((r as any).evidences) ? (r as any).evidences : [];
+        const rules = evidences.map((e: any) => e.ruleId).join(',');
+        const riskScore = (r as any).riskScore;
+        const candidates: string[] = Array.isArray((r as any).candidates) ? (r as any).candidates : [];
+        const candStr = candidates.length > 0 ? `${candidates[0]}${candidates.length > 1 ? ` (+${candidates.length - 1})` : ''}` : '';
+        return {
+          domain: String((r as any).domain ?? ''),
+          risk: String((r as any).risk ?? ''),
+          https: (r as any).https?.status ?? '',
+          http: (r as any).http?.status ?? '',
+          dns: (r as any).dns?.status ?? '',
+          skipped: (r as any).skipped ? 'yes' : '',
+          action: (r as any).action ?? '',
+          reason: (r as any).reason ?? '',
+          confidence: typeof (r as any).confidence === 'number' ? (r as any).confidence : '',
+          ...(opts.showTls ? { tls: opts.format === 'json' ? tlsObj : tlsStr } : {}),
+          ...(opts.showEvidence ? { riskScore: riskScore ?? '', rules: opts.format === 'json' ? evidences.map((e: any) => e.ruleId) : rules } : {}),
+          ...(opts.showCandidates ? { candidates: opts.format === 'json' ? candidates : candStr } : {}),
+        };
+      });
 
       const fmt = String(opts.format || 'table').toLowerCase();
       if (fmt === 'json') {
@@ -84,19 +99,34 @@ export function registerListCommand(program: Command) {
         return;
       }
 
-      const table = new Table({ head: ['domain', 'risk', 'https', 'http', 'dns', 'skipped', 'action', 'reason', 'conf'] });
+      const head = ['domain', 'risk', 'https', 'http', 'dns', 'skipped', 'action', 'reason', 'conf'] as string[];
+      if (opts.showTls) head.splice(5, 0, 'tls');
+      if (opts.showEvidence) head.push('score', 'rules');
+      if (opts.showCandidates) head.push('candidates');
+      const table = new Table({ head });
       for (const row of rows) {
-        table.push([
+        const line: any[] = [
           row.domain,
           colorRisk(row.risk),
           String(row.https),
           String(row.http),
           String(row.dns),
+        ];
+        if (opts.showTls) line.push(String((row as any).tls ?? ''));
+        line.push(
           row.skipped,
           String(row.action || ''),
           String(row.reason || ''),
           String(row.confidence ?? ''),
-        ]);
+        );
+        if (opts.showEvidence) {
+          line.push(String((row as any).riskScore ?? ''));
+          line.push(String((row as any).rules ?? ''));
+        }
+        if (opts.showCandidates) {
+          line.push(String((row as any).candidates ?? ''));
+        }
+        table.push(line);
       }
       console.log(table.toString());
       console.log(`count=${rows.length}`);

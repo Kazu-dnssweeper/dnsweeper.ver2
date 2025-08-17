@@ -36,6 +36,16 @@ npm start -- analyze packages/dnsweeper/sample.csv --http-check --doh --dns-type
 # 追加オプション: --doh-endpoint <url> / --dns-timeout <ms> / --dns-retries <n>
 # 終了時に stderr へ DNSキャッシュ統計を表示（ヒット率/推定節約時間）
 
+# Evidence を出力（Risk Engine の score/evidences を含める）
+npm start -- analyze packages/dnsweeper/sample.csv --http-check --doh \
+  --include-evidence --output analyzed.with-evidence.json --pretty
+
+# SRV 回答から候補URLを注釈し、必要時に追加プローブ（--probe-srv）
+# 例: _sip._tcp.example.com などの SRV → candidates: [https://target:443/, http://target:5060/]
+npm start -- analyze packages/dnsweeper/sample.csv --http-check --doh --probe-srv --output out.json --pretty
+# 補足: https の TLS 最小情報（ALPN/Issuer/SNI）は https.tls に反映されます
+# 補足: サマリに HTTP エラー種別の集計が表示されます（timeout/tls/http4xx/http5xx 等）
+
 # ルールセット適用（リスク調整）
 # .tmp/rulesets/<name>.json を用意して適用（簡易スキーマは src/core/rules/engine.ts を参照）
 npm start -- analyze packages/dnsweeper/sample.csv --http-check --doh --ruleset default --ruleset-dir .tmp/rulesets --summary
