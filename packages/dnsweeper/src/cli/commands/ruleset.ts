@@ -110,12 +110,24 @@ export function registerRulesetCommand(program: Command) {
       cfg.risk.rules.weights = cfg.risk.rules.weights || {};
       cfg.risk.rules.disabled = cfg.risk.rules.disabled || [];
       if (Array.isArray(opts.set)) {
+        // load known RULES for validation
+        let KNOWN: Set<string> = new Set();
+        try {
+          const mod = await import('../../core/risk/rules.js');
+          const RULES: Record<string, unknown> = (mod as any).RULES || {};
+          KNOWN = new Set(Object.keys(RULES));
+        } catch {}
         for (const p of opts.set) {
           const [k, v] = String(p).split('=');
           const num = Number(v);
           if (!/^R-\d{3}$/.test(k) || !isFinite(num) || Math.abs(num) > 100) {
             // eslint-disable-next-line no-console
             console.error(`invalid weight pair: ${p}`);
+            process.exit(1);
+          }
+          if (KNOWN.size && !KNOWN.has(k)) {
+            // eslint-disable-next-line no-console
+            console.error(`unknown rule id: ${k}`);
             process.exit(1);
           }
           cfg.risk.rules.weights[k] = num;

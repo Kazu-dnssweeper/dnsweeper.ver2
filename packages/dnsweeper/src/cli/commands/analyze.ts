@@ -167,7 +167,9 @@ export function registerAnalyzeCommand(program: Command) {
           try {
             const rawSnap = await fs.promises.readFile(snapshotPath, 'utf8');
             const snap = JSON.parse(rawSnap);
-            if (snap?.meta?.inputHash === inputHash && Array.isArray(snap.results)) {
+            const rsMetaNow = await getRulesetVersion();
+            const matchRuleset = JSON.stringify(snap?.meta?.ruleset || {}) === JSON.stringify(rsMetaNow || {});
+            if (snap?.meta?.inputHash === inputHash && matchRuleset && Array.isArray(snap.results)) {
               for (const r of snap.results as any[]) {
                 results.push(r);
                 if (r?.domain) processedSet.add(String(r.domain));
@@ -194,6 +196,8 @@ export function registerAnalyzeCommand(program: Command) {
           };
           const recent: boolean[] = [];
           const httpErrorCounts: Record<string, number> = {};
+          // snapshot metadata
+          const rsMeta = await getRulesetVersion();
           await Promise.all(
             domains.map((domain, idx) =>
               limit(async () => {
@@ -381,7 +385,7 @@ export function registerAnalyzeCommand(program: Command) {
                 // Snapshot best-effort
                 try {
                   if (snapshotPath) {
-                    const snap = { meta: { inputHash, execId, ts: new Date().toISOString() }, results: results.filter(Boolean) };
+                    const snap = { meta: { inputHash, execId, ts: new Date().toISOString(), ruleset: rsMeta }, results: results.filter(Boolean) };
                     const pathMod = await import('node:path');
                     await fs.promises.mkdir(pathMod.dirname(snapshotPath), { recursive: true });
                     await fs.promises.writeFile(snapshotPath, JSON.stringify(snap), 'utf8');
