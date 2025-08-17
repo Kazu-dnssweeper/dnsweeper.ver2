@@ -54,6 +54,14 @@ Re-run workflows
 - Rerun failed jobs only: `pnpm run ci:rerun:failed`
 - Specific run id: `node scripts/ci/rerun.js --run <RUN_ID> [--failed]`
 
+## Push fallback via HTTPS (PAT)
+If SSH push is unstable in your environment, use the HTTPS fallback script:
+
+- Save PAT once to `~/.config/dnsweeper/token` (600 perms)
+- Commit and push via HTTPS with token:
+  - `pnpm run ci:push` (pushes current branch to origin)
+  - Optionally pass args: `scripts/ci/push.sh <branch> "commit message"`
+
 ## Rotation / Safety
 - Deploy Key: Remove from GitHub → re‑generate with the script → re‑add
 - PAT: Revoke after use (Settings → Developer settings → Tokens)

@@ -12,7 +12,8 @@
         "ci:status": "node scripts/ci/status.js",
         "ci:logs": "bash scripts/ci/logs.sh",
         "ci:rerun": "node scripts/ci/rerun.js",
-        "ci:rerun:failed": "node scripts/ci/rerun.js --failed"
+        "ci:rerun:failed": "node scripts/ci/rerun.js --failed",
+        "ci:push": "bash scripts/ci/push.sh"
     },
     "keywords": [],
     "author": "",

@@ -1,6 +1,8 @@
 /* eslint-disable no-console */
 import https from 'node:https';
 import process from 'node:process';
+import fs from 'node:fs';
+import path from 'node:path';
 
 const REPO = process.env.CI_REPO || 'Kazu-dnssweeper/dnsweeper.ver2';
 const OWNER_REPO = REPO.split('/');
@@ -13,8 +15,6 @@ function readToken() {
   let t = process.env.GITHUB_TOKEN || '';
   if (t) return t.trim();
   try {
-    const fs = await import('node:fs');
-    const path = await import('node:path');
     const p = path.join(process.env.HOME || process.env.USERPROFILE || '.', '.config', 'dnsweeper', 'token');
     t = fs.readFileSync(p, 'utf8').trim();
   } catch {}
@@ -72,6 +72,7 @@ async function main() {
   let mode = 'full'; // or 'failed'
   for (let i = 0; i < args.length; i++) {
     const a = args[i];
+    if (a === '/') continue; // ignore accidental slash
     if (a === '--run' && i + 1 < args.length) {
       runId = args[++i];
     } else if (a === '--failed') {
@@ -110,4 +111,3 @@ async function main() {
 }
 
 main();
-
