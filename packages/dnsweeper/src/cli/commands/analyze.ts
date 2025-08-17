@@ -4,6 +4,7 @@ import Papa from 'papaparse';
 import pLimit from 'p-limit';
 import { fetch } from 'undici';
 import { resolveDoh, getDohStats, resetDohStats, QType } from '../../core/resolver/doh.js';
+import { loadRuleset, applyRules } from '../../core/rules/engine.js';
 import { isPrivateIPv4, isPrivateIPv6, isSpecialIPv4, mightBePrivateName } from '../../core/net/ip.js';
 import { validateAnalyzeArray } from '../../core/schema/analyze.js';
 import { writeJson } from '../../core/output/json.js';
@@ -26,6 +27,8 @@ type AnalyzeOptions = {
   allowPrivate?: boolean;
   qps?: number;
   userAgent?: string;
+  ruleset?: string;
+  rulesetDir?: string;
 };
 
 type RiskLevel = 'low' | 'medium' | 'high';
@@ -88,6 +91,8 @@ export function registerAnalyzeCommand(program: Command) {
     .option('--allow-private', 'allow probing private/special domains or IPs', false)
     .option('--qps <n>', 'overall queries per second limit', (v) => parseInt(String(v), 10), 0)
     .option('--user-agent <ua>', 'override HTTP User-Agent header')
+    .option('--ruleset <name>', 'apply ruleset from directory to adjust risk')
+    .option('--ruleset-dir <dir>', 'ruleset directory', '.tmp/rulesets')
     .option('--quiet', 'suppress periodic progress output', false)
     .option('-o, --output <file>', 'write analyzed JSON (array)')
     .option('--pretty', 'pretty-print JSON (with --output)', false)
@@ -273,6 +278,10 @@ export function registerAnalyzeCommand(program: Command) {
                 if (skipped) {
                   if (!options.doh || (dnsResult && dnsResult.status === 'NOERROR')) risk = 'low';
                 }
+                // Apply ruleset if provided
+                const rs = options.ruleset ? loadRuleset(options.rulesetDir || '.tmp/rulesets', options.ruleset) : null;
+                const adjusted = rs ? applyRules(domain, risk, { ruleset: rs, dns: dnsResult }) : risk;
+                risk = adjusted;
                 if (risk === 'low') low += 1;
                 else if (risk === 'medium') medium += 1;
                 else high += 1;

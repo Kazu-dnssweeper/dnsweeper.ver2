@@ -1,0 +1,43 @@
+{
+  "name": "dnsweeper",
+  "version": "1.0.0",
+  "type": "module",
+  "main": "dist/cli/index.js",
+  "bin": { "dnsweeper": "bin/dnsweeper" },
+  "scripts": {
+    "test": "vitest run",
+    "build": "tsup src/cli/index.ts --format esm --dts --sourcemap --clean --out-dir dist/cli",
+    "dev": "tsx src/cli/index.ts",
+    "lint": "eslint .",
+    "format": "prettier -c .",
+    "prestart": "pnpm run build",
+    "postinstall": "pnpm run build",
+    "start": "node dist/cli/index.js"
+  },
+  "dependencies": {
+    "cli-table3": "^0.6.5",
+    "commander": "^14.0.0",
+    "exceljs": "^4.4.0",
+    "ora": "^8.2.0",
+    "p-limit": "^7.0.0",
+    "papaparse": "^5.5.3",
+    "undici": "^7.13.0",
+    "zod": "^4.0.17"
+  },
+  "devDependencies": {
+    "@types/node": "^24.3.0",
+    "@typescript-eslint/eslint-plugin": "^8.39.1",
+    "@typescript-eslint/parser": "^8.39.1",
+    "@vitest/coverage-v8": "^3.2.4",
+    "eslint": "^9.33.0",
+    "eslint-config-prettier": "^10.1.8",
+    "eslint-plugin-import": "^2.32.0",
+    "prettier": "^3.6.2",
+    "ts-node": "^10.9.2",
+    "tsup": "^8.5.0",
+    "tsx": "^4.20.4",
+    "typescript": "^5.9.2",
+    "vitest": "^3.2.4"
+  }
+}
+

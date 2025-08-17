@@ -4,3 +4,6 @@ dist/
 coverage/
 .DS_Store
 *.log
+packages/dnsweeper/node_modules/
+packages/dnsweeper/dist/
+packages/dnsweeper/.tmp/

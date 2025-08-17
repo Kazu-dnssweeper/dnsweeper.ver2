@@ -22,13 +22,13 @@ jobs:
       - run: corepack enable
       - run: corepack prepare pnpm@9.12.0 --activate
       - run: pnpm install --frozen-lockfile=false
-      - run: pnpm run build
-      - run: pnpm run test
-      - run: pnpm run lint
-      - run: pnpm run test -- --coverage
+      - run: pnpm -C packages/dnsweeper run build
+      - run: pnpm -C packages/dnsweeper run test
+      - run: pnpm -C packages/dnsweeper run lint
+      - run: pnpm -C packages/dnsweeper run test -- --coverage
       - name: Upload coverage artifact
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: coverage-${{ matrix.node-version }}
-          path: .tmp/coverage
+          path: packages/dnsweeper/.tmp/coverage

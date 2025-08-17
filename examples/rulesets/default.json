@@ -1,0 +1,15 @@
+{
+  "name": "default-demo",
+  "qtypeWeights": {
+    "A": 1,
+    "AAAA": 0.5,
+    "CNAME": 1
+  },
+  "cnameExternalBoost": true,
+  "domainIncludes": ["example"],
+  "rules": [
+    { "when": { "regex": "^.*\\.internal\\..*$" }, "risk": "low" },
+    { "when": { "contains": "openai" }, "scoreDelta": 0.2 }
+  ]
+}
+

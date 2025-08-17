@@ -1,17 +1,14 @@
 {
-    "name": "dnsweeper",
-    "version": "1.0.0",
-    "main": "index.js",
+    "name": "dnsweeper-workspace",
+    "private": true,
+    "version": "0.0.0",
+    "type": "module",
     "scripts": {
-        "test": "vitest run",
-        "build": "tsup src/cli/index.ts --format esm --dts --sourcemap --clean --out-dir dist/cli",
-        "dev": "tsx src/cli/index.ts",
-        "lint": "eslint .",
-        "format": "prettier -c .",
-        "prestart": "npm run build",
-        "postinstall": "npm run build",
-        "start": "node dist/cli/index.js",
-        "pipeline": "node dist/cli/index.js analyze sample.csv --http-check && node dist/cli/index.js import sample.csv --pretty > out.json && node -e \"const fs=require('fs');const a=JSON.parse(fs.readFileSync('out.json','utf8'));console.log('summary=',{rows:a.length,domains:a.map(x=>x.domain)})\"",
+        "build": "pnpm -C packages/dnsweeper run build",
+        "test": "pnpm -C packages/dnsweeper run test",
+        "lint": "pnpm -C packages/dnsweeper run lint",
+        "start": "node packages/dnsweeper/dist/cli/index.js",
+        "pipeline": "node packages/dnsweeper/dist/cli/index.js analyze packages/dnsweeper/sample.csv --http-check && node packages/dnsweeper/dist/cli/index.js import packages/dnsweeper/sample.csv --pretty > out.json && node -e \"const fs=require('fs');const a=JSON.parse(fs.readFileSync('out.json','utf8'));console.log('summary=',{rows:a.length,domains:a.map(x=>x.domain)})\"",
         "ci:status": "node scripts/ci/status.js",
         "ci:logs": "bash scripts/ci/logs.sh",
         "ci:rerun": "node scripts/ci/rerun.js",
@@ -21,34 +18,5 @@
     "author": "",
     "license": "ISC",
     "description": "",
-    "type": "module",
-    "bin": {
-        "dnsweeper": "bin/dnsweeper"
-    },
-    "dependencies": {
-        "cli-table3": "^0.6.5",
-        "commander": "^14.0.0",
-        "exceljs": "^4.4.0",
-        "ora": "^8.2.0",
-        "p-limit": "^7.0.0",
-        "papaparse": "^5.5.3",
-        "undici": "^7.13.0",
-        "zod": "^4.0.17"
-    },
-    "devDependencies": {
-        "@types/node": "^24.3.0",
-        "@typescript-eslint/eslint-plugin": "^8.39.1",
-        "@typescript-eslint/parser": "^8.39.1",
-        "@vitest/coverage-v8": "^3.2.4",
-        "eslint": "^9.33.0",
-        "eslint-config-prettier": "^10.1.8",
-        "eslint-plugin-import": "^2.32.0",
-        "prettier": "^3.6.2",
-        "ts-node": "^10.9.2",
-        "tsup": "^8.5.0",
-        "tsx": "^4.20.4",
-        "typescript": "^5.9.2",
-        "vitest": "^3.2.4"
-    },
     "packageManager": "pnpm@9.12.0+sha512.4abf725084d7bcbafbd728bfc7bee61f2f791f977fd87542b3579dcb23504d170d46337945e4c66485cd12d588a0c0e570ed9c477e7ccdd8507cf05f3f92eaca"
 }

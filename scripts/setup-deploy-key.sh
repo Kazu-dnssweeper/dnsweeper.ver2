@@ -26,4 +26,3 @@ CFG
 echo "PUBLIC_KEY="$PUB_KEY""
 echo "SSH config written: $SSH_CFG"
 echo "Use: GIT_SSH_COMMAND=\"ssh -F $SSH_CFG\" git push -u origin main"
-

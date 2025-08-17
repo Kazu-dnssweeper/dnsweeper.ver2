@@ -3,6 +3,7 @@ import fs from 'node:fs';
 import Papa from 'papaparse';
 import { detectEncoding } from '../../core/parsers/detect.js';
 import { detectProviderFromHeader, Provider } from '../../core/parsers/provider-detect.js';
+import { validateHeaders } from '../../core/parsers/spec.js';
 import { normalizeCloudflare } from '../../core/parsers/cloudflare.js';
 import { normalizeRoute53 } from '../../core/parsers/route53.js';
 import { normalizeGeneric } from '../../core/parsers/generic.js';
@@ -55,8 +56,37 @@ export function registerImportCommand(program: Command) {
 
         const cfg = await loadConfig().catch(() => null);
         const provider: Provider = opts.provider || detectProviderFromHeader(headerCaptured || []);
+        // Header validation
+        const headers = headerCaptured || [];
+        const headerCheck = validateHeaders(provider, headers);
+        if (!headerCheck.ok) {
+          // Push all rows to errors with reason and abort normalization to avoid misleading output
+          const reason = `invalid header: missing [${headerCheck.missing.join(', ')}]`;
+          await writeErrorsCsv(
+            rows.map((r) => ({ error: reason, row: r })),
+            opts.errors || 'errors.csv'
+          );
+          console.error(`header validation failed for provider=${provider}: ${reason}`);
+          process.exit(1);
+        }
+        // Unknown headers warning (not required/optional)
+        try {
+          const { HEADER_SPECS } = await import('../../core/parsers/spec.js');
+          const spec: any = (HEADER_SPECS as any)[provider];
+          const allowed = new Set<string>([...spec.required, ...spec.optional, ...Object.keys(spec.aliases || {})]);
+          const unknown = headers
+            .map((h) => h.toLowerCase().trim())
+            .filter((h) => !allowed.has(h));
+          const uniq = Array.from(new Set(unknown));
+          if (uniq.length) {
+            // eslint-disable-next-line no-console
+            console.warn(`[warn] unknown headers ignored: ${uniq.join(', ')}`);
+          }
+        } catch {}
+
         const out: CsvRecord[] = [];
         const errors: RowError[] = [];
+        let success = 0;
 
         for (const r of rows) {
           try {
@@ -76,6 +106,7 @@ export function registerImportCommand(program: Command) {
               rec.ttl = cfg.defaultTtl;
             }
             out.push(rec);
+            success += 1;
           } catch (e) {
             const msg = e instanceof Error ? e.message : String(e);
             errors.push({ error: msg, row: r });
@@ -98,6 +129,8 @@ export function registerImportCommand(program: Command) {
           // eslint-disable-next-line no-console
           console.log(json);
         }
+        // eslint-disable-next-line no-console
+        console.error(`[import] provider=${provider} ok=${success} errors=${errors.length}`);
       } catch (e) {
         const msg = e instanceof Error ? e.message : String(e);
         // eslint-disable-next-line no-console
