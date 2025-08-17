@@ -6,6 +6,8 @@
     "scripts": {
         "build": "pnpm -C packages/dnsweeper run build",
         "test": "pnpm -C packages/dnsweeper run test",
+        "test:unit": "pnpm -C packages/dnsweeper run test:unit",
+        "test:net": "pnpm -C packages/dnsweeper run test:net",
         "lint": "pnpm -C packages/dnsweeper run lint",
         "start": "node packages/dnsweeper/dist/cli/index.js",
         "pipeline": "node packages/dnsweeper/dist/cli/index.js analyze packages/dnsweeper/sample.csv --http-check && node packages/dnsweeper/dist/cli/index.js import packages/dnsweeper/sample.csv --pretty > out.json && node -e \"const fs=require('fs');const a=JSON.parse(fs.readFileSync('out.json','utf8'));console.log('summary=',{rows:a.length,domains:a.map(x=>x.domain)})\"",

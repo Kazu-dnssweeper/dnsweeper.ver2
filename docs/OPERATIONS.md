@@ -17,8 +17,8 @@ Steps (from repo root):
    - Title: `dnsweeper-deploy` (arbitrary)
    - Key: paste the printed `ssh-ed25519 ...` line (exactly one line)
    - Check “Allow write access” → Add key
-3) Test and push
-   - `GIT_SSH_COMMAND="ssh -F .tmp/ssh_config" ssh -T git@github.com` (should say auth OK / no shell)
+3) Test and push (temporary config)
+   - `bash scripts/ssh-test.sh`
    - `GIT_SSH_COMMAND="ssh -F .tmp/ssh_config" git push -u origin main`
 
 Notes
@@ -68,16 +68,10 @@ If SSH push is unstable in your environment, use the HTTPS fallback script:
 - Never commit files under `.tmp/` (ignored via .gitignore)
 
 ## Persistent SSH on your machine (no re‑setup)
-Move the deploy key to your `~/.ssh` and set a permanent host entry:
-- `install -m 700 -d ~/.ssh && install -m 600 .tmp/deploy_key ~/.ssh/dnsweeper && install -m 644 .tmp/deploy_key.pub ~/.ssh/dnsweeper.pub`
-- Append to `~/.ssh/config` (create if missing):
-```
-Host github-dnsweeper
-  HostName github.com
-  User git
-  IdentityFile ~/.ssh/dnsweeper
-  IdentitiesOnly yes
-  StrictHostKeyChecking accept-new
-```
+Automate the persistence of the deploy key and host alias:
+- `bash scripts/ssh-persist.sh`
 - Test: `ssh -T github-dnsweeper`
-- Use: `GIT_SSH_COMMAND="ssh -F ~/.ssh/config -o HostKeyAlgorithms=ssh-ed25519" git push -u origin main`
+- Use: `git push -u origin main`（リモートがSSHの場合）
+
+If origin is HTTPS, convert it once:
+- `bash scripts/remote-to-ssh.sh`

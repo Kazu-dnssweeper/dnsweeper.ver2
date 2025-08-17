@@ -6,6 +6,8 @@
   "bin": { "dnsweeper": "bin/dnsweeper" },
   "scripts": {
     "test": "vitest run",
+    "test:unit": "VITEST_SCOPE=unit vitest run",
+    "test:net": "VITEST_SCOPE=net vitest run",
     "build": "tsup src/cli/index.ts --format esm --dts --sourcemap --clean --out-dir dist/cli",
     "dev": "tsx src/cli/index.ts",
     "lint": "eslint .",
@@ -40,4 +42,3 @@
     "vitest": "^3.2.4"
   }
 }
-

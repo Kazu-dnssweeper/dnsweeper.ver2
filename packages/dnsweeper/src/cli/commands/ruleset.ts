@@ -73,4 +73,24 @@ export function registerRulesetCommand(program: Command) {
         )
       );
     });
+
+  cmd
+    .command('validate')
+    .argument('<file>', 'ruleset JSON file to validate')
+    .description('Validate a ruleset JSON file against schema')
+    .action(async (file: string) => {
+      try {
+        const raw = await fs.promises.readFile(file, 'utf8');
+        const { RulesetSchema } = await import('../../core/rules/engine.js');
+        const json = JSON.parse(raw);
+        (RulesetSchema as any).parse(json);
+        // eslint-disable-next-line no-console
+        console.log('OK');
+      } catch (e) {
+        const msg = e instanceof Error ? e.message : String(e);
+        // eslint-disable-next-line no-console
+        console.error(msg);
+        process.exit(1);
+      }
+    });
 }

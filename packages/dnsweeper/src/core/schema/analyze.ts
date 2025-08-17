@@ -1,6 +1,13 @@
 import { z } from 'zod';
 
-export const HttpSchema = z.object({ ok: z.boolean(), status: z.number().optional() });
+export const HttpSchema = z.object({
+  ok: z.boolean(),
+  status: z.number().optional(),
+  redirects: z.number().optional(),
+  finalUrl: z.string().optional(),
+  elapsedMs: z.number().optional(),
+  errorType: z.string().optional(),
+});
 export const DnsHopSchema = z.object({ type: z.string(), data: z.string(), ttl: z.number().optional() });
 export const DnsSchema = z.object({
   status: z.string(),
@@ -29,4 +36,3 @@ export type AnalyzeItem = z.infer<typeof AnalyzeItemSchema>;
 export function validateAnalyzeArray(a: unknown): asserts a is AnalyzeItem[] {
   AnalyzeArraySchema.parse(a);
 }
-

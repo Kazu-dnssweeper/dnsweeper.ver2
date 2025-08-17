@@ -22,8 +22,10 @@ export function registerListCommand(program: Command) {
     .option('--min-risk <level>', 'low|medium|high', 'low')
     .option('--sort <key>', 'risk|domain', 'risk')
     .option('--desc', 'sort descending', false)
-    .description('List records by minimum risk with optional sorting')
-    .action(async (input: string, opts: { minRisk: Risk; sort?: string; desc?: boolean }) => {
+    .option('--format <fmt>', 'table|json|csv', 'table')
+    .option('-o, --output <file>', 'output file for json/csv (stdout if omitted)')
+    .description('List records by minimum risk with optional sorting and output formats')
+    .action(async (input: string, opts: { minRisk: Risk; sort?: string; desc?: boolean; format?: string; output?: string }) => {
       const raw = await fs.promises.readFile(input, 'utf8');
       const data = JSON.parse(raw);
       if (!Array.isArray(data)) {
@@ -45,25 +47,58 @@ export function registerListCommand(program: Command) {
       });
       if (opts.desc) records.reverse();
 
-      const table = new Table({ head: ['domain', 'risk', 'https', 'http', 'dns', 'skipped'] });
-      for (const r of records) {
-        const risk = String((r as any).risk ?? '');
-        const https = (r as any).https?.status ?? '';
-        const http = (r as any).http?.status ?? '';
-        const dns = (r as any).dns?.status ?? '';
-        const skipped = (r as any).skipped ? 'yes' : '';
+      const rows = records.map((r) => ({
+        domain: String((r as any).domain ?? ''),
+        risk: String((r as any).risk ?? ''),
+        https: (r as any).https?.status ?? '',
+        http: (r as any).http?.status ?? '',
+        dns: (r as any).dns?.status ?? '',
+        skipped: (r as any).skipped ? 'yes' : '',
+        action: (r as any).action ?? '',
+        reason: (r as any).reason ?? '',
+        confidence: typeof (r as any).confidence === 'number' ? (r as any).confidence : '',
+      }));
+
+      const fmt = String(opts.format || 'table').toLowerCase();
+      if (fmt === 'json') {
+        const json = JSON.stringify(rows, null, 2);
+        if (opts.output) {
+          await fs.promises.writeFile(opts.output, json, 'utf8');
+          console.log(`wrote json: ${opts.output}`);
+        } else {
+          console.log(json);
+        }
+        console.error(`count=${rows.length}`);
+        return;
+      }
+      if (fmt === 'csv') {
+        const { default: Papa } = await import('papaparse');
+        const csv = (Papa as any).unparse(rows, { header: true });
+        if (opts.output) {
+          await fs.promises.writeFile(opts.output, csv, 'utf8');
+          console.log(`wrote csv: ${opts.output}`);
+        } else {
+          process.stdout.write(csv + '\n');
+        }
+        console.error(`count=${rows.length}`);
+        return;
+      }
+
+      const table = new Table({ head: ['domain', 'risk', 'https', 'http', 'dns', 'skipped', 'action', 'reason', 'conf'] });
+      for (const row of rows) {
         table.push([
-          String((r as any).domain ?? ''),
-          colorRisk(risk),
-          String(https),
-          String(http),
-          String(dns),
-          skipped,
+          row.domain,
+          colorRisk(row.risk),
+          String(row.https),
+          String(row.http),
+          String(row.dns),
+          row.skipped,
+          String(row.action || ''),
+          String(row.reason || ''),
+          String(row.confidence ?? ''),
         ]);
       }
-      // eslint-disable-next-line no-console
       console.log(table.toString());
-      // eslint-disable-next-line no-console
-      console.log(`count=${records.length}`);
+      console.log(`count=${rows.length}`);
     });
 }
