@@ -1,0 +1,47 @@
+name: Bench (HTTP+DoH)
+
+on:
+  workflow_dispatch:
+
+jobs:
+  bench:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        preset: [low-latency, high-latency, strict-rules]
+        size: [100, 10000]
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'pnpm'
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9
+
+      - name: Install deps
+        run: pnpm install --frozen-lockfile
+
+      - name: Build
+        run: pnpm -C packages/dnsweeper run build
+
+      - name: Bench (3x)
+        run: |
+          mkdir -p .tmp
+          for i in 1 2 3; do
+            echo "Run #$i preset=${{ matrix.preset }} size=${{ matrix.size }}";
+            node scripts/bench/bench.js \
+              --size ${{ matrix.size }} \
+              --preset examples/presets/${{ matrix.preset }}.json \
+              --http --doh 2>&1 | tee -a .tmp/bench_${{ matrix.preset }}_${{ matrix.size }}.log;
+          done
+
+      - name: Upload bench logs
+        uses: actions/upload-artifact@v4
+        with:
+          name: bench-logs-${{ matrix.preset }}-${{ matrix.size }}
+          path: .tmp/bench_${{ matrix.preset }}_${{ matrix.size }}.log
