@@ -12,6 +12,7 @@ import { JobRunner } from '../../core/jobs/runner.js';
 import { appendAudit, sha256File, getRulesetVersion } from '../../core/audit/audit.js';
 import { probeUrl } from '../../core/http/probe.js';
 import { evaluateRisk } from '../../core/risk/engine.js';
+import { loadConfig } from '../../core/config/schema.js';
 
 type AnalyzeOptions = {
   httpCheck?: boolean;
@@ -98,6 +99,17 @@ export function registerAnalyzeCommand(program: Command) {
       try {
         // Warm config for risk thresholds/overrides
         try { const { warmConfig } = await import('../../core/risk/config.js'); await warmConfig(); } catch {}
+        // Apply analyze defaults from config (CLI args > config > built-in)
+        try {
+          const cfg = await loadConfig();
+          const az = cfg?.analyze || {};
+          if (typeof az.qps === 'number' && (options.qps ?? 0) === 0) options.qps = az.qps;
+          if (typeof az.concurrency === 'number' && (options.concurrency ?? 5) === 5) options.concurrency = az.concurrency;
+          if (typeof az.timeoutMs === 'number' && (options.timeout ?? 5000) === 5000) options.timeout = az.timeoutMs;
+          if (typeof az.dohEndpoint === 'string' && !options.dohEndpoint) options.dohEndpoint = az.dohEndpoint;
+        } catch {
+          // ignore config layering errors
+        }
         const fileStream = fs.createReadStream(input, { encoding: 'utf8' });
         let rows = 0;
         const domains: string[] = [];

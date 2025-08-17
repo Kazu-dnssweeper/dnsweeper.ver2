@@ -69,3 +69,14 @@ TASK-001 未達の補完状況:
 - ✅ SSH 運用: `setup-deploy-key.sh`/`ssh-persist.sh`/`ssh-test.sh`/`remote-to-ssh.sh`
 - ✅ 片付け: `scripts/logout.sh`（DRY-RUN/--force、ローカル資格情報の削除）
 - ✅ 週次の大規模フォーマット検証: `.github/workflows/ci-large.yml`（LARGE_E2E=1 で10k/100kをサイズゲート実行）
+
+---
+
+# PROGRESS (TASK-006: 設定 & チューニング)
+
+- ✅ 設定スキーマ拡張: `dnsweeper.config.json`（risk thresholds/rules overrides, analyze defaults, annotate defaults）
+- ✅ Risk Engine 反映: `weights`/`disabled` を `evaluateRisk` に適用
+- ✅ ruleset CLI: `ruleset weights --set/--off/--on` で設定ファイルを更新
+- ✅ annotate マーク付与: `--mark key:value` で `marks` をマージ
+- ✅ analyze レイヤリング: configの既定（qps/concurrency/timeoutMs/dohEndpoint）をCLIで未指定時に反映
+- ✅ 中断安全: `--snapshot`/`--resume` によるスナップショット保存と再開（入力ハッシュ一致時に未処理のみ）

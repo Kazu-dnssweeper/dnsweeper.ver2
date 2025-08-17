@@ -113,6 +113,9 @@ npm start -- annotate out.json --contains openai --note "check ssl" --label impo
 
 # 正規表現でマッチ
 npm start -- annotate out.json --regex "^.*example\\.com$" --label watch --output out.annot2.json
+
+# マークを付与（key:value 形式をマージ）
+npm start -- annotate out.json --contains example --mark keep:prod owner:web --output out.marked.json --pretty
 ```
 
 ## 進捗記録
@@ -178,4 +181,22 @@ npm start -- import packages/dnsweeper/tests/fixtures/generic-small.csv --provid
 echo '{"defaultTtl": 1800}' > dnsweeper.config.json
 # TTL 欄が空でも defaultTtl が補完される
 npm start -- import packages/dnsweeper/tests/fixtures/generic-small.csv --pretty
+```
+# analyze の再開（スナップショット）
+```sh
+# 初回（スナップショットを定期保存）
+npm start -- analyze packages/dnsweeper/sample.csv --http-check --doh --snapshot .tmp/snap.json --output out.json
+
+# 再開（入力ハッシュ一致時に未処理分のみ続行）
+npm start -- analyze packages/dnsweeper/sample.csv --http-check --doh --resume --snapshot .tmp/snap.json --output out.json
+```
+
+# ルールの重み/無効化（dnsweeper.config.json を更新）
+```sh
+# 重みを設定（±100、存在するルールIDを指定）
+npm start -- ruleset weights --set R-003=10 R-005=20
+
+# ルールを無効化/有効化
+npm start -- ruleset weights --off R-007 R-010
+npm start -- ruleset weights --on R-007
 ```
