@@ -89,6 +89,11 @@ npm start -- annotate out.json --regex "^.*example\\.com$" --label watch --outpu
 
 ## 進捗記録
 - 最新の進捗は [instructions/PROGRESS.md](instructions/PROGRESS.md) を参照
+
+## 運用ガイド
+- Push/CIの手順・Deploy Key・PAT の扱いは [docs/OPERATIONS.md](docs/OPERATIONS.md) を参照
+- CIの最新状態を確認: `GITHUB_TOKEN=xxxx pnpm run ci:status`
+- CIログの取得: `GITHUB_TOKEN=xxxx pnpm run ci:logs`
 \n+## Import（プロバイダ自動判定とエラー分離）
 ```sh
 # 自動判定で正規化（Cloudflare/Route53/Generic を判定）

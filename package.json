@@ -11,7 +11,11 @@
         "prestart": "npm run build",
         "postinstall": "npm run build",
         "start": "node dist/cli/index.js",
-        "pipeline": "node dist/cli/index.js analyze sample.csv --http-check && node dist/cli/index.js import sample.csv --pretty > out.json && node -e \"const fs=require('fs');const a=JSON.parse(fs.readFileSync('out.json','utf8'));console.log('summary=',{rows:a.length,domains:a.map(x=>x.domain)})\""
+        "pipeline": "node dist/cli/index.js analyze sample.csv --http-check && node dist/cli/index.js import sample.csv --pretty > out.json && node -e \"const fs=require('fs');const a=JSON.parse(fs.readFileSync('out.json','utf8'));console.log('summary=',{rows:a.length,domains:a.map(x=>x.domain)})\"",
+        "ci:status": "node scripts/ci/status.js",
+        "ci:logs": "bash scripts/ci/logs.sh",
+        "ci:rerun": "node scripts/ci/rerun.js",
+        "ci:rerun:failed": "node scripts/ci/rerun.js --failed"
     },
     "keywords": [],
     "author": "",
@@ -45,5 +49,6 @@
         "tsx": "^4.20.4",
         "typescript": "^5.9.2",
         "vitest": "^3.2.4"
-    }
+    },
+    "packageManager": "pnpm@9.12.0+sha512.4abf725084d7bcbafbd728bfc7bee61f2f791f977fd87542b3579dcb23504d170d46337945e4c66485cd12d588a0c0e570ed9c477e7ccdd8507cf05f3f92eaca"
 }
