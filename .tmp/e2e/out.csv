@@ -1,3 +1,0 @@
-name,type,content,ttl
-db.example.com,A,192.0.2.42,600
-_acme-challenge.example.com,TXT,v=spf1 include:example.com ~all,120
