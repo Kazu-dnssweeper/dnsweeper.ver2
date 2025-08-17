@@ -27,6 +27,7 @@ export function registerListCommand(program: Command) {
     .option('--show-tls', 'include TLS summary column (table/csv) and field (json)', false)
     .option('--show-evidence', 'include riskScore and rules summary (table/csv) and fields (json)', false)
     .option('--show-candidates', 'include SRV/derived candidates summary (table/csv) and field (json)', false)
+    .option('--verbose', 'print distribution summary to stderr', false)
     .description('List records by minimum risk with optional sorting and output formats')
     .action(async (input: string, opts: { minRisk: Risk; sort?: string; desc?: boolean; format?: string; output?: string; showTls?: boolean; showEvidence?: boolean; showCandidates?: boolean }) => {
       const raw = await fs.promises.readFile(input, 'utf8');
@@ -75,6 +76,14 @@ export function registerListCommand(program: Command) {
       });
 
       const fmt = String(opts.format || 'table').toLowerCase();
+      if (opts.verbose) {
+        const dist = rows.reduce(
+          (acc, r) => { (acc as any)[String((r as any).risk)] += 1; return acc; },
+          { low: 0, medium: 0, high: 0 } as Record<string, number>
+        );
+        // eslint-disable-next-line no-console
+        console.error(`[dist] low=${dist.low} medium=${dist.medium} high=${dist.high}`);
+      }
       if (fmt === 'json') {
         const json = JSON.stringify(rows, null, 2);
         if (opts.output) {

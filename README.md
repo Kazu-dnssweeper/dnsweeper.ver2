@@ -98,6 +98,10 @@ npm start -- export out.json --format xlsx --output out.xlsx
 
 # JSON を pretty で再出力
 npm start -- export out.json --format json --pretty --output out.pretty.json
+
+# パフォーマンス表示（--verbose）
+npm start -- export out.json --format csv --output out.csv --verbose
+# stderr に [perf] count/elapsed_ms/out_bytes/rss_mb/rps を表示
 ```
 
 補足: 入力の JSON に `risk` フィールドが含まれる場合、XLSX は `Summary`/`High`/`All` の3シートを出力します（`Summary` はリスク分布）。
@@ -151,6 +155,10 @@ npm start -- list analyzed.json --min-risk medium --sort risk
 # JSON/CSVでの出力（--output 省略時は標準出力）
 npm start -- list analyzed.json --format json -o list.json
 npm start -- list analyzed.json --format csv  -o list.csv
+
+# 追加列の表示（TLS/Evidence/SRV候補）と分布サマリ（--verbose）
+npm start -- list analyzed.json --min-risk medium --show-tls --show-evidence --show-candidates --format table --verbose
+# stderr に [dist] low/medium/high の分布を表示
 ```
 
 ## Import（プロバイダ自動判定とエラー分離）
