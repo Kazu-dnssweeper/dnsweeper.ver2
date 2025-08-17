@@ -35,6 +35,8 @@ type AnalyzeOptions = {
   rulesetDir?: string;
   noDowngrade?: boolean;
   probeSrv?: boolean;
+  snapshot?: string;
+  resume?: boolean;
 };
 
 type RiskLevel = 'low' | 'medium' | 'high';
@@ -84,6 +86,8 @@ export function registerAnalyzeCommand(program: Command) {
     .option('--ruleset-dir <dir>', 'ruleset directory', '.tmp/rulesets')
     .option('--no-downgrade', 'do not lower risk below base after ruleset adjustment', false)
     .option('--probe-srv', 'probe SRV-derived URLs if present', false)
+    .option('--snapshot <file>', 'periodically write snapshot JSON (resume support)', '.tmp/snapshot.json')
+    .option('--resume', 'resume from snapshot if input matches', false)
     .option('--quiet', 'suppress periodic progress output', false)
     .option('-o, --output <file>', 'write analyzed JSON (array)')
     .option('--pretty', 'pretty-print JSON (with --output)', false)
@@ -92,6 +96,8 @@ export function registerAnalyzeCommand(program: Command) {
     .description('Analyze CSV and print data row count (header excluded)')
     .action(async (input: string, options: AnalyzeOptions) => {
       try {
+        // Warm config for risk thresholds/overrides
+        try { const { warmConfig } = await import('../../core/risk/config.js'); await warmConfig(); } catch {}
         const fileStream = fs.createReadStream(input, { encoding: 'utf8' });
         let rows = 0;
         const domains: string[] = [];
@@ -140,6 +146,24 @@ export function registerAnalyzeCommand(program: Command) {
         }> = [];
         const runner = new JobRunner(domains.length, { quiet: options.quiet });
 
+        // Resume support
+        const processedSet = new Set<string>();
+        const snapshotPath = options.snapshot || '.tmp/snapshot.json';
+        let inputHash = '';
+        try { inputHash = await sha256File(input); } catch {}
+        if (options.resume && snapshotPath) {
+          try {
+            const rawSnap = await fs.promises.readFile(snapshotPath, 'utf8');
+            const snap = JSON.parse(rawSnap);
+            if (snap?.meta?.inputHash === inputHash && Array.isArray(snap.results)) {
+              for (const r of snap.results as any[]) {
+                results.push(r);
+                if (r?.domain) processedSet.add(String(r.domain));
+              }
+            }
+          } catch {}
+        }
+
         if (options?.httpCheck || options?.doh) {
           const limit = pLimit(Math.max(1, options.concurrency ?? 5));
           let low = 0, medium = 0, high = 0;
@@ -161,6 +185,7 @@ export function registerAnalyzeCommand(program: Command) {
           await Promise.all(
             domains.map((domain, idx) =>
               limit(async () => {
+                if ((processedSet as Set<string>).has(domain)) return;
                 const t0 = Date.now();
                 await gate();
                 // DNS -> HTTP (serial)
@@ -341,6 +366,15 @@ export function registerAnalyzeCommand(program: Command) {
                   ...(candidates.length > 0 ? { candidates } : {}),
                   ...(skipped ? { skipped: true, skipReason } : {}),
                 };
+                // Snapshot best-effort
+                try {
+                  if (snapshotPath) {
+                    const snap = { meta: { inputHash, execId, ts: new Date().toISOString() }, results: results.filter(Boolean) };
+                    const pathMod = await import('node:path');
+                    await fs.promises.mkdir(pathMod.dirname(snapshotPath), { recursive: true });
+                    await fs.promises.writeFile(snapshotPath, JSON.stringify(snap), 'utf8');
+                  }
+                } catch {}
                 // Stale detection v1
                 try {
                   const { detectStale } = await import('../../core/sweep/detector.js');

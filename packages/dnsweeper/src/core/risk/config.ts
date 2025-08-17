@@ -1,5 +1,4 @@
-import fs from 'node:fs';
-import path from 'node:path';
+import { loadConfig } from '../config/schema.js';
 
 export type RiskThresholds = {
   lowTtlSec: number; // R-004: TTL anomaly threshold
@@ -10,20 +9,11 @@ export type RiskThresholds = {
 
 let cached: RiskThresholds | null = null;
 
-function loadConfigSync(cwd = process.cwd()): any | null {
-  const file = path.join(cwd, 'dnsweeper.config.json');
-  try {
-    const raw = fs.readFileSync(file, 'utf8');
-    return JSON.parse(raw);
-  } catch {
-    return null;
-  }
-}
-
 export function getRiskThresholds(): RiskThresholds {
   if (cached) return cached;
-  const cfg = loadConfigSync();
-  const risk = (cfg && (cfg as any).risk) || {};
+  // Note: loadConfig is async, but here we use best-effort sync cache via env passthrough
+  // Callers can warm config separately; fallback to defaults when not available.
+  const risk = (globalThis as any).__DNSWEEPER_CFG__?.risk || {};
   const n = (v: any, d: number) => (typeof v === 'number' && isFinite(v) ? v : d);
   cached = {
     lowTtlSec: n(risk.lowTtlSec, 30),
@@ -34,3 +24,18 @@ export function getRiskThresholds(): RiskThresholds {
   return cached;
 }
 
+export async function warmConfig() {
+  try {
+    const cfg = await loadConfig();
+    (globalThis as any).__DNSWEEPER_CFG__ = cfg;
+  } catch {
+    // ignore
+  }
+}
+
+export function getRuleOverrides(): { weights: Record<string, number>; disabled: string[] } {
+  const cfg = (globalThis as any).__DNSWEEPER_CFG__ || {};
+  const rw = cfg?.risk?.rules?.weights || {};
+  const dis = cfg?.risk?.rules?.disabled || [];
+  return { weights: rw, disabled: dis };
+}
