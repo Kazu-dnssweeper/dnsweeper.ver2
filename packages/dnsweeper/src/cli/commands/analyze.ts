@@ -226,8 +226,19 @@ export function registerAnalyzeCommand(program: Command) {
                 const isFail = !!(options.httpCheck && !skipped && !probed.https.ok && !probed.http.ok);
                 runner.update(dt, isFail);
 
-                // Combine risk using Risk Engine (http+dns)
+                // Combine risk: heuristic first (preserve existing behavior)
                 let risk: RiskLevel = probed.risk;
+                if (options.doh && dnsResult) {
+                  if (dnsResult.status === 'NOERROR') {
+                    // keep HTTP-based risk
+                  } else if (dnsResult.status === 'NXDOMAIN') {
+                    // If querying multiple types, NXDOMAIN across all -> high
+                    risk = 'high';
+                  } else if (dnsResult.status === 'TIMEOUT' || dnsResult.status === 'SERVFAIL') {
+                    risk = risk === 'high' ? 'high' : 'medium';
+                  }
+                }
+                // Then consult Risk Engine but do not downgrade below heuristic
                 try {
                   const ctx = {
                     name: domain,
