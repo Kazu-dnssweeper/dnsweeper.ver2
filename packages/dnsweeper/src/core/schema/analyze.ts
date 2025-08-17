@@ -7,6 +7,13 @@ export const HttpSchema = z.object({
   finalUrl: z.string().optional(),
   elapsedMs: z.number().optional(),
   errorType: z.string().optional(),
+  tls: z
+    .object({
+      alpn: z.string().optional(),
+      issuer: z.string().optional(),
+      sni: z.string().optional(),
+    })
+    .optional(),
 });
 export const DnsHopSchema = z.object({ type: z.string(), data: z.string(), ttl: z.number().optional() });
 export const DnsSchema = z.object({
@@ -35,6 +42,7 @@ export const AnalyzeItemSchema = z.object({
       })
     )
     .optional(),
+  candidates: z.array(z.string()).optional(),
   original: z.record(z.unknown()).optional(),
   skipped: z.boolean().optional(),
   skipReason: z.string().optional(),

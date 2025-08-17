@@ -34,6 +34,7 @@ type AnalyzeOptions = {
   ruleset?: string;
   rulesetDir?: string;
   noDowngrade?: boolean;
+  probeSrv?: boolean;
 };
 
 type RiskLevel = 'low' | 'medium' | 'high';
@@ -82,6 +83,7 @@ export function registerAnalyzeCommand(program: Command) {
     .option('--ruleset <name>', 'apply ruleset from directory to adjust risk')
     .option('--ruleset-dir <dir>', 'ruleset directory', '.tmp/rulesets')
     .option('--no-downgrade', 'do not lower risk below base after ruleset adjustment', false)
+    .option('--probe-srv', 'probe SRV-derived URLs if present', false)
     .option('--quiet', 'suppress periodic progress output', false)
     .option('-o, --output <file>', 'write analyzed JSON (array)')
     .option('--pretty', 'pretty-print JSON (with --output)', false)
@@ -155,6 +157,7 @@ export function registerAnalyzeCommand(program: Command) {
             if (wait > 0) await new Promise((r) => setTimeout(r, wait));
           };
           const recent: boolean[] = [];
+          const httpErrorCounts: Record<string, number> = {};
           await Promise.all(
             domains.map((domain, idx) =>
               limit(async () => {
@@ -224,9 +227,55 @@ export function registerAnalyzeCommand(program: Command) {
                   }
                 }
 
+                // SRV candidates (annotation + optional probing)
+                const candidates: string[] = [];
+                if (options.doh && dnsResult) {
+                  const srv = (dnsResult.chain || []).filter((h) => String(h.type).toUpperCase() === 'SRV');
+                  for (const h of srv) {
+                    const parts = String(h.data || '').trim().split(/\s+/);
+                    if (parts.length >= 4) {
+                      const port = parseInt(parts[2], 10);
+                      const target = parts[3];
+                      if (Number.isFinite(port) && target) {
+                        if (port === 443) candidates.push(`https://${target}:${port}/`);
+                        else if (port === 80) candidates.push(`http://${target}:${port}/`);
+                        else {
+                          candidates.push(`https://${target}:${port}/`);
+                          candidates.push(`http://${target}:${port}/`);
+                        }
+                      }
+                    }
+                  }
+                }
+
+                // Optional probing of first SRV candidate if base checks failed
+                let srvProbe: { ok: boolean; status?: number; finalUrl?: string; errorType?: string } | undefined;
+                if (options.httpCheck && options.probeSrv && !skipped && !probed.https.ok && !probed.http.ok && candidates.length > 0) {
+                  try {
+                    const url = candidates[0];
+                    const r = await (await import('../../core/http/probe.js')).probeUrl(url, {
+                      timeoutMs: options.timeout ?? 5000,
+                      userAgent: options.userAgent,
+                      maxRedirects: 5,
+                      method: 'HEAD',
+                    });
+                    srvProbe = { ok: !!r.ok, status: (r as any).status, finalUrl: (r as any).finalUrl, errorType: (r as any).errorType };
+                    if (srvProbe.ok) {
+                      probed.http = { ok: true, status: srvProbe.status } as any;
+                      if (probed.risk !== 'low') probed.risk = 'medium';
+                    }
+                  } catch {
+                    // ignore
+                  }
+                }
+
                 const dt = Date.now() - t0;
                 const isFail = !!(options.httpCheck && !skipped && !probed.https.ok && !probed.http.ok);
                 runner.update(dt, isFail);
+                if (options.httpCheck && !skipped) {
+                  const tag = (probed.https as any)?.ok || (probed.http as any)?.ok ? 'ok' : ((probed.https as any)?.errorType || (probed.http as any)?.errorType || 'unknown');
+                  httpErrorCounts[tag] = (httpErrorCounts[tag] || 0) + 1;
+                }
 
                 // Combine risk: heuristic first (preserve existing behavior)
                 let risk: RiskLevel = probed.risk;
@@ -289,6 +338,7 @@ export function registerAnalyzeCommand(program: Command) {
                   ...(options.includeEvidence && evCombined
                     ? { riskScore: evCombined.score, evidences: evCombined.evidences }
                     : {}),
+                  ...(candidates.length > 0 ? { candidates } : {}),
                   ...(skipped ? { skipped: true, skipReason } : {}),
                 };
                 // Stale detection v1
@@ -343,6 +393,10 @@ export function registerAnalyzeCommand(program: Command) {
                   1
                 )}% time_spent_ms=${s.timeSpentMs} est_saved_ms=${estSaved}`
               );
+            }
+            if (options.httpCheck) {
+              const pairs = Object.entries(httpErrorCounts).map(([k, v]) => `${k}:${v}`).join(' ');
+              console.error(`[http] errors=${pairs}`);
             }
           }
           if (options.summary) {
