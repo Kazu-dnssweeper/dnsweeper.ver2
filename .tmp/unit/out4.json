@@ -1,0 +1,1 @@
+[{"domain":"internal.example.local","risk":"low","https":{"ok":false},"http":{"ok":false},"dns":{"status":"NOERROR","chain":[{"type":"A","data":"10.0.0.5","TTL":120}],"elapsedMs":2,"queries":[{"type":"A","status":"NOERROR","elapsedMs":2,"answers":1}]}}]

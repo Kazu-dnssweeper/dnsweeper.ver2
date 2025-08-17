@@ -1,0 +1,14 @@
+[
+  {
+    "name": "app.example.com",
+    "type": "A",
+    "content": "198.51.100.2",
+    "ttl": 60
+  },
+  {
+    "name": "www.example.com",
+    "type": "CNAME",
+    "aliasTarget": "target.example.net",
+    "ttl": 300
+  }
+]

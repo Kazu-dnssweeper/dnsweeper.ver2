@@ -1,0 +1,3 @@
+Name,Type,TTL,Value,Alias Target
+app.example.com.,A,60,198.51.100.2,
+www.example.com.,CNAME,300,,target.example.net.

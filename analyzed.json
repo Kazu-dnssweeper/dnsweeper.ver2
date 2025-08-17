@@ -1,0 +1,22 @@
+[
+  {
+    "domain": "example.com",
+    "risk": "high",
+    "https": {
+      "ok": false
+    },
+    "http": {
+      "ok": false
+    }
+  },
+  {
+    "domain": "openai.com",
+    "risk": "high",
+    "https": {
+      "ok": false
+    },
+    "http": {
+      "ok": false
+    }
+  }
+]

@@ -1,0 +1,1 @@
+[{"domain":"nope.invalid","risk":"high","https":{"ok":false},"http":{"ok":false},"dns":{"status":"NXDOMAIN","chain":[],"elapsedMs":6,"queries":[{"type":"A","status":"NXDOMAIN","elapsedMs":3,"answers":0},{"type":"AAAA","status":"NXDOMAIN","elapsedMs":3,"answers":0}]}}]

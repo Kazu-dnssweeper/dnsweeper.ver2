@@ -1,0 +1,10 @@
+[
+  {
+    "domain": "example.com",
+    "status": "ok"
+  },
+  {
+    "domain": "openai.com",
+    "status": "ok"
+  }
+]

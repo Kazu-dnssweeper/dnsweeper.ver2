@@ -1,0 +1,8 @@
+[
+  {
+    "name": "missingttl.example.com",
+    "type": "A",
+    "content": "192.0.2.10",
+    "ttl": 1800
+  }
+]

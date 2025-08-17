@@ -1,0 +1,1 @@
+[{"domain":"example.com","risk":"low","https":{"ok":false},"http":{"ok":false},"dns":{"status":"NOERROR","chain":[{"type":"A","data":"93.184.216.34","TTL":60}],"elapsedMs":5,"queries":[{"type":"A","status":"NOERROR","elapsedMs":5,"answers":1}]}}]
