@@ -2,6 +2,7 @@
 
 ![CI Unit](https://github.com/Kazu-dnssweeper/dnsweeper.ver2/actions/workflows/ci-unit.yml/badge.svg)
 ![CI Net](https://github.com/Kazu-dnssweeper/dnsweeper.ver2/actions/workflows/ci-net.yml/badge.svg)
+![CI Large](https://github.com/Kazu-dnssweeper/dnsweeper.ver2/actions/workflows/ci-large.yml/badge.svg)
 
 最小セットアップと実行手順のメモ。
 
@@ -128,6 +129,7 @@ npm start -- annotate out.json --regex "^.*example\\.com$" --label watch --outpu
 - CI 分割:
   - Unit: Push/PR で自動実行（.github/workflows/ci-unit.yml）
   - Network/Integration: 手動/スケジュール実行（.github/workflows/ci-net.yml）
+  - Large Formats: 週次/手動で大規模フォーマットのE2E検証（.github/workflows/ci-large.yml）
 
 ## モノレポ構成（pnpm workspace）
 このリポジトリはモノレポです。コア実装は `packages/dnsweeper/` 配下にあります。

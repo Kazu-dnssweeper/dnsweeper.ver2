@@ -68,3 +68,4 @@ TASK-001 未達の補完状況:
 - ✅ ローカル pre-push フック: `scripts/setup-githooks.sh` で `test:unit`+`lint` を自動実行
 - ✅ SSH 運用: `setup-deploy-key.sh`/`ssh-persist.sh`/`ssh-test.sh`/`remote-to-ssh.sh`
 - ✅ 片付け: `scripts/logout.sh`（DRY-RUN/--force、ローカル資格情報の削除）
+- ✅ 週次の大規模フォーマット検証: `.github/workflows/ci-large.yml`（LARGE_E2E=1 で10k/100kをサイズゲート実行）
