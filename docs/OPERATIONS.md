@@ -75,3 +75,15 @@ Automate the persistence of the deploy key and host alias:
 
 If origin is HTTPS, convert it once:
 - `bash scripts/remote-to-ssh.sh`
+
+## Logout / Cleanup (remove local credentials)
+When you finish work or need to sanitize the environment, use the logout helper.
+
+- Dry-run (shows what would be removed):
+  - `bash scripts/logout.sh`
+- Apply (actually remove files and edit `~/.ssh/config`):
+  - `bash scripts/logout.sh --force`
+- Scope of removal (local only):
+  - Repo-local: `.tmp/deploy_key{,.pub}`, `.tmp/ssh_config`
+  - User: `~/.config/dnsweeper/token`, `~/.ssh/dnsweeper{,.pub}`, `Host github-dnsweeper` entry in `~/.ssh/config`
+- Server-side: Consider revoking Deploy Key (Repo → Settings → Deploy keys) and PAT（Settings → Developer settings → Tokens）as needed.
