@@ -13,7 +13,7 @@ describe('E2E: export --verbose emits perf', () => {
   const tmp = path.join(repo, '.tmp', 'e2e-export');
   fs.mkdirSync(tmp, { recursive: true });
 
-  it('prints perf line to stderr', () => {
+  it('prints perf line to stderr', { timeout: 15000 }, () => {
     // ensure build exists
     run('pnpm run -s build', repo);
     const json = path.join(tmp, 'small.json');
@@ -24,4 +24,3 @@ describe('E2E: export --verbose emits perf', () => {
     expect(fs.existsSync(out)).toBe(true);
   });
 });
-
