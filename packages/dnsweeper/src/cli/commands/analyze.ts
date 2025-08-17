@@ -242,7 +242,9 @@ export function registerAnalyzeCommand(program: Command) {
                     },
                   };
                   const ev = evaluateRisk(ctx as any);
-                  risk = ev.level as RiskLevel;
+                  const rank = (x: string) => (x === 'low' ? 0 : x === 'medium' ? 1 : 2);
+                  // Do not downgrade below heuristic; pick the higher risk level
+                  risk = rank(ev.level) > rank(risk) ? (ev.level as RiskLevel) : risk;
                 } catch {
                   // ignore
                 }

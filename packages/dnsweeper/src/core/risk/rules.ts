@@ -31,7 +31,7 @@ export const RULES: Record<string, RuleFn> = {
     }
     return null;
   },
-  'R-004': (_ctx) => null,
+  // R-004 implemented below
   // DNS high-risk hint: composite signals
   // - SERVFAIL/TIMEOUT with repeated attempts (>=2)
   // - NXDOMAIN with attempts in [1,2] (below R-001 threshold)
