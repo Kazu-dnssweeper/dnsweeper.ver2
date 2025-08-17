@@ -26,6 +26,8 @@ describe('E2E: large format export (size-gated)', () => {
   fs.mkdirSync(tmp, { recursive: true });
 
   it('exports 100 records to CSV/XLSX', () => {
+    // Ensure build exists
+    run('pnpm -C packages/dnsweeper run build', repo);
     const json = makeJson(100, tmp);
     const outCsv = path.join(tmp, 'large-100.csv');
     const outXlsx = path.join(tmp, 'large-100.xlsx');
@@ -48,4 +50,3 @@ describe('E2E: large format export (size-gated)', () => {
     }
   });
 });
-
