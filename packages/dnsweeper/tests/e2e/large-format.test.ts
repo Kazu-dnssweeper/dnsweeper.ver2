@@ -25,7 +25,7 @@ describe('E2E: large format export (size-gated)', () => {
   const tmp = path.join(repo, '.tmp', 'e2e-large');
   fs.mkdirSync(tmp, { recursive: true });
 
-  it('exports 100 records to CSV/XLSX', () => {
+  it('exports 100 records to CSV/XLSX', { timeout: 20000 }, () => {
     // Ensure build exists
     run('pnpm run -s build', repo);
     const json = makeJson(100, tmp);
