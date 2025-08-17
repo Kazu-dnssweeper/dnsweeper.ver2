@@ -42,8 +42,8 @@ if [[ -z "$ORIGIN_URL" ]]; then
   exit 1
 fi
 
-# Normalize to owner/repo.git
-if [[ "$ORIGIN_URL" =~ ^git@github.com:(.*)$ ]]; then
+# Normalize to owner/repo.git (support SSH host aliases)
+if [[ "$ORIGIN_URL" =~ ^git@[^:]+:(.*)$ ]]; then
   PATH_PART="${BASH_REMATCH[1]}"
 elif [[ "$ORIGIN_URL" =~ ^https://github.com/(.*)$ ]]; then
   PATH_PART="${BASH_REMATCH[1]}"
@@ -58,4 +58,3 @@ AUTH_URL="https://x-access-token:${TOKEN}@github.com/${PATH_PART}"
 git push "$AUTH_URL" "$BRANCH:$BRANCH"
 
 echo "Pushed branch $BRANCH to origin via HTTPS (token not logged)."
-
