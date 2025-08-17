@@ -21,6 +21,7 @@ type AnalyzeOptions = {
   output?: string; // write JSON result file
   pretty?: boolean; // pretty JSON output
   includeOriginal?: boolean; // include original row
+  includeEvidence?: boolean; // include riskScore + evidences
   quiet?: boolean; // suppress progress
   doh?: boolean; // enable DoH resolution
   dohEndpoint?: string; // custom endpoint
@@ -85,6 +86,7 @@ export function registerAnalyzeCommand(program: Command) {
     .option('-o, --output <file>', 'write analyzed JSON (array)')
     .option('--pretty', 'pretty-print JSON (with --output)', false)
     .option('--include-original', 'include original CSV row in output objects', false)
+    .option('--include-evidence', 'include riskScore and evidences (Risk Engine)', false)
     .description('Analyze CSV and print data row count (header excluded)')
     .action(async (input: string, options: AnalyzeOptions) => {
       try {
@@ -239,6 +241,7 @@ export function registerAnalyzeCommand(program: Command) {
                   }
                 }
                 // Then consult Risk Engine but do not downgrade below heuristic
+                let evCombined: { score: number; level: string; evidences: any[] } | null = null;
                 try {
                   const ctx = {
                     name: domain,
@@ -253,6 +256,7 @@ export function registerAnalyzeCommand(program: Command) {
                     },
                   };
                   const ev = evaluateRisk(ctx as any);
+                  evCombined = ev as any;
                   const rank = (x: string) => (x === 'low' ? 0 : x === 'medium' ? 1 : 2);
                   // Do not downgrade below heuristic; pick the higher risk level
                   risk = rank(ev.level) > rank(risk) ? (ev.level as RiskLevel) : risk;
@@ -282,6 +286,9 @@ export function registerAnalyzeCommand(program: Command) {
                   http: skipped ? undefined : probed.http,
                   dns: dnsResult,
                   original: options.includeOriginal ? originals[idx] : undefined,
+                  ...(options.includeEvidence && evCombined
+                    ? { riskScore: evCombined.score, evidences: evCombined.evidences }
+                    : {}),
                   ...(skipped ? { skipped: true, skipReason } : {}),
                 };
                 // Stale detection v1

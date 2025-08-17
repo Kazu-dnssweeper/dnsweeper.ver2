@@ -24,6 +24,17 @@ export const AnalyzeItemSchema = z.object({
   https: HttpSchema.optional(),
   http: HttpSchema.optional(),
   dns: DnsSchema.optional(),
+  riskScore: z.number().optional(),
+  evidences: z
+    .array(
+      z.object({
+        ruleId: z.string(),
+        message: z.string(),
+        severity: z.enum(['low', 'medium', 'high']),
+        meta: z.record(z.unknown()).optional(),
+      })
+    )
+    .optional(),
   original: z.record(z.unknown()).optional(),
   skipped: z.boolean().optional(),
   skipReason: z.string().optional(),
