@@ -80,3 +80,10 @@ TASK-001 未達の補完状況:
 - ✅ annotate マーク付与: `--mark key:value` で `marks` をマージ
 - ✅ analyze レイヤリング: configの既定（qps/concurrency/timeoutMs/dohEndpoint）をCLIで未指定時に反映
 - ✅ 中断安全: `--snapshot`/`--resume` によるスナップショット保存と再開（入力ハッシュ一致時に未処理のみ）
+
+# PROGRESS (TASK-007: 調整 & 性能検証)
+
+- ✅ ベンチ基盤: `scripts/bench/bench.js`（CSV生成→analyze→[bench]出力）
+- ✅ 設定プリセット: `examples/presets/low-latency.json` / `high-latency.json` / `strict-rules.json`
+- ✅ QPSゲート微調整: バースト許容量（analyze.qpsBurst）＋平滑化ペーシング
+- ⏳ 計測とレポート作成: docs/BENCHMARKS.md に手順とテンプレを用意（次は100/10k→100kの順で中央値を取得）

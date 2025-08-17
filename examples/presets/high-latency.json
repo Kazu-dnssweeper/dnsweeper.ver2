@@ -1,10 +1,10 @@
 {
   "analyze": {
-    "qps": 200,
+    "qps": 50,
     "concurrency": 40,
-    "timeoutMs": 3000,
-    "progressIntervalMs": 1000,
-    "qpsBurst": 20
+    "timeoutMs": 8000,
+    "progressIntervalMs": 1500,
+    "qpsBurst": 10
   },
   "risk": {
     "rules": {

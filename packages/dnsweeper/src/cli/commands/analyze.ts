@@ -156,7 +156,14 @@ export function registerAnalyzeCommand(program: Command) {
           reason?: string;
           confidence?: number;
         }> = [];
-        const runner = new JobRunner(domains.length, { quiet: options.quiet });
+        // Apply progress interval from config if provided
+        let progressIntervalMs: number | undefined;
+        try {
+          const cfg = await loadConfig();
+          const az = cfg?.analyze || {};
+          if (typeof az?.progressIntervalMs === 'number') progressIntervalMs = az.progressIntervalMs;
+        } catch {}
+        const runner = new JobRunner(domains.length, { quiet: options.quiet, intervalMs: progressIntervalMs });
 
         // Resume support
         const processedSet = new Set<string>();
@@ -200,11 +207,24 @@ export function registerAnalyzeCommand(program: Command) {
           if (options.doh) resetDohStats();
           // QPS limiter
           const qps = Math.max(0, options.qps ?? 0);
+          // Simple bursty rate-limit: allow up to burst within a 1s window, then pace by qps
+          let burst = 0;
+          try {
+            const cfg = await loadConfig();
+            const az = cfg?.analyze || {};
+            if (typeof az?.qpsBurst === 'number') burst = Math.max(0, az.qpsBurst);
+          } catch {}
+          let usedInWindow = 0;
+          let windowStart = Date.now();
           let nextAt = Date.now();
           const gate = async () => {
             if (qps <= 0) return;
-            const interval = 1000 / qps;
             const now = Date.now();
+            if (now - windowStart >= 1000) {
+              windowStart = now; usedInWindow = 0;
+            }
+            if (usedInWindow < burst) { usedInWindow += 1; return; }
+            const interval = 1000 / qps;
             const wait = Math.max(0, nextAt - now);
             nextAt = (wait ? nextAt : now) + interval;
             if (wait > 0) await new Promise((r) => setTimeout(r, wait));
@@ -381,6 +401,8 @@ export function registerAnalyzeCommand(program: Command) {
                 } else {
                   risk = adjusted;
                 }
+                // Strong override: NXDOMAIN should yield high in DoH-only scenarios
+                if (options.doh && dnsResult && dnsResult.status === 'NXDOMAIN') risk = 'high';
                 if (risk === 'low') low += 1;
                 else if (risk === 'medium') medium += 1;
                 else high += 1;
