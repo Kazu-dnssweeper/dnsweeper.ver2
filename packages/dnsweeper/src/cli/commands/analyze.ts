@@ -163,6 +163,18 @@ export function registerAnalyzeCommand(program: Command) {
         const snapshotPath = options.snapshot || '.tmp/snapshot.json';
         let inputHash = '';
         try { inputHash = await sha256File(input); } catch {}
+        // If snapshot exists, warn on ruleset changes even when not resuming
+        try {
+          const rawSnap = await fs.promises.readFile(snapshotPath, 'utf8');
+          const snap = JSON.parse(rawSnap);
+          const rsMetaNow = await getRulesetVersion();
+          const matchRuleset = JSON.stringify(snap?.meta?.ruleset || {}) === JSON.stringify(rsMetaNow || {});
+          if (!matchRuleset) {
+            // eslint-disable-next-line no-console
+            console.error('[warn] snapshot exists but ruleset meta differs (not resuming unless --resume and meta matches)');
+          }
+        } catch {}
+
         if (options.resume && snapshotPath) {
           try {
             const rawSnap = await fs.promises.readFile(snapshotPath, 'utf8');
@@ -174,6 +186,9 @@ export function registerAnalyzeCommand(program: Command) {
                 results.push(r);
                 if (r?.domain) processedSet.add(String(r.domain));
               }
+            } else {
+              // eslint-disable-next-line no-console
+              console.error('[warn] resume skipped: snapshot does not match current input/ruleset meta');
             }
           } catch {}
         }
@@ -382,13 +397,21 @@ export function registerAnalyzeCommand(program: Command) {
                   ...(candidates.length > 0 ? { candidates } : {}),
                   ...(skipped ? { skipped: true, skipReason } : {}),
                 };
-                // Snapshot best-effort
+                // Snapshot best-effort with simple rotation
                 try {
                   if (snapshotPath) {
-                    const snap = { meta: { inputHash, execId, ts: new Date().toISOString(), ruleset: rsMeta }, results: results.filter(Boolean) };
+                    // rotate: keep up to 2 generations (.1, .2)
                     const pathMod = await import('node:path');
-                    await fs.promises.mkdir(pathMod.dirname(snapshotPath), { recursive: true });
-                    await fs.promises.writeFile(snapshotPath, JSON.stringify(snap), 'utf8');
+                    const fsMod = fs.promises;
+                    const dir = pathMod.dirname(snapshotPath);
+                    await fsMod.mkdir(dir, { recursive: true });
+                    const r1 = `${snapshotPath}.1`;
+                    const r2 = `${snapshotPath}.2`;
+                    try { await fsMod.unlink(r2); } catch {}
+                    try { await fsMod.rename(r1, r2); } catch {}
+                    try { await fsMod.rename(snapshotPath, r1); } catch {}
+                    const snap = { meta: { inputHash, execId, ts: new Date().toISOString(), ruleset: rsMeta }, results: results.filter(Boolean) };
+                    await fsMod.writeFile(snapshotPath, JSON.stringify(snap), 'utf8');
                   }
                 } catch {}
                 // Stale detection v1
