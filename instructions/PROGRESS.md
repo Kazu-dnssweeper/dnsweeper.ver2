@@ -87,3 +87,35 @@ TASK-001 未達の補完状況:
 - ✅ 設定プリセット: `examples/presets/low-latency.json` / `high-latency.json` / `strict-rules.json`
 - ✅ QPSゲート微調整: バースト許容量（analyze.qpsBurst）＋平滑化ペーシング
 - ⏳ 計測とレポート作成: docs/BENCHMARKS.md に手順とテンプレを用意（次は100/10k→100kの順で中央値を取得）
+
+---
+
+# RECENT UPDATES (2025-08-18)
+
+- ✅ ベンチ更新/自動化（TASK-007 継続）
+  - `docs/BENCHMARKS.md` に最新中央値を反映（100: ~6.1s / 10k: ~410s）。
+  - `.github/workflows/bench.yml` 強化（100k×3: low-latencyのみ、`--timeout 500`/`--dns-timeout 1500`、常時サマリ/Artifact）。
+  - `scripts/bench/summarize.js` 追加（ログ→中央値算出）。
+
+- ✅ ドキュメント/仕様
+  - `docs/SPEC.md` 追加（GA時点の仕様/アーキテクチャ/スキーマ/NFR等）。
+  - `ROADMAP.md` 追加/更新（M8–M21 と v0.1.0〜v2.1.0+ を tasks にリンク）。
+
+- ✅ CLI/機能
+  - `jobs` コマンド追加（status/start/cancel）。
+  - スナップショットに `meta.total/processed` 追記（jobs status で%表示）。
+
+- ✅ CI/配布
+  - Cross-OS スモーク追加（`.github/workflows/ci-os.yml`）。
+  - Release ワークフロー追加（`.github/workflows/release.yml`）。
+
+- ✅ 計画/追跡（GitHub）
+  - Milestones 作成: v0.1.0 / v0.3.0 / v0.5.0（due_on設定）。
+  - Tracking Issues 作成: #2/#3/#4（各Milestone）。
+  - 集約PR #5（v0.1.0 Preview）作成→マージ（squash）。
+
+- ✅ README 更新
+  - ベンチ概況（最新中央値）への更新、関連ドキュメントへの導線強化。
+
+- 🧭 User-side Tasks（tasks各所に追記）
+  - アカウント/Secrets/SSO、宣伝/LP、法務、課金等を各フェーズに割当（tasks/task0xx.md 参照）。
