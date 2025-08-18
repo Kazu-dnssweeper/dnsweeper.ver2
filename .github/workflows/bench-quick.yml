@@ -24,7 +24,7 @@ jobs:
           set -e
           mkdir -p .tmp
           echo "Run #1 preset=low-latency size=100000 (quick)";
-          node scripts/bench/bench.js \
+          timeout 90m node scripts/bench/bench.js \
             --size 100000 \
             --preset examples/presets/low-latency.json \
             --http --doh \

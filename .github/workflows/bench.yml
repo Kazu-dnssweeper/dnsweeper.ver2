@@ -29,7 +29,7 @@ jobs:
           set -e
           mkdir -p .tmp
           echo "Run #1 preset=${{ matrix.preset }} size=${{ matrix.size }}";
-          node scripts/bench/bench.js --size ${{ matrix.size }} --preset examples/presets/${{ matrix.preset }}.json --http --doh --timeout 500 --dns-timeout 1500 2>&1 | tee -a .tmp/bench_${{ matrix.preset }}_${{ matrix.size }}.log
+          timeout 180m node scripts/bench/bench.js --size ${{ matrix.size }} --preset examples/presets/${{ matrix.preset }}.json --http --doh --timeout 500 --dns-timeout 1500 2>&1 | tee -a .tmp/bench_${{ matrix.preset }}_${{ matrix.size }}.log
       - name: Summarize
         if: always()
         run: |

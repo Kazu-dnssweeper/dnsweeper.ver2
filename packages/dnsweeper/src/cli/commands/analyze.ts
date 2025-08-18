@@ -257,8 +257,12 @@ export function registerAnalyzeCommand(program: Command) {
                       )
                     )
                   : []) as Array<{ status: string; chain: Array<{ type: string; data: string; ttl?: number }>; elapsedMs: number; qtype?: string }>;
+                // Short-circuit: if DoH says NXDOMAIN (for all queried types), skip HTTP probes
+                const dohAllNx = options.doh && rrList.length > 0 && rrList.every((r) => r.status === 'NXDOMAIN');
                 const probed = options.httpCheck
-                  ? await probeDomain(domain, options.timeout ?? 5000, options.userAgent)
+                  ? (dohAllNx
+                      ? ({ https: { ok: false }, http: { ok: false }, risk: 'high' as RiskLevel } as any)
+                      : await probeDomain(domain, options.timeout ?? 5000, options.userAgent))
                   : ({ https: { ok: false }, http: { ok: false }, risk: 'low' as RiskLevel } as any);
 
                 let dnsResult:
@@ -289,6 +293,10 @@ export function registerAnalyzeCommand(program: Command) {
                 // Private/special filters
                 let skipped = false;
                 let skipReason: string | undefined;
+                if (options.doh && dohAllNx) {
+                  skipped = true;
+                  skipReason = 'nxdomain';
+                }
                 if (!options.allowPrivate) {
                   const privateName = domain ? mightBePrivateName(domain) : false;
                   const privateIP = (rrList || []).some((r) =>
