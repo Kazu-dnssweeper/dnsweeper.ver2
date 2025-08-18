@@ -432,7 +432,7 @@ export function registerAnalyzeCommand(program: Command) {
                     try { await fsMod.unlink(r2); } catch {}
                     try { await fsMod.rename(r1, r2); } catch {}
                     try { await fsMod.rename(snapshotPath, r1); } catch {}
-                    const snap = { meta: { inputHash, execId, ts: new Date().toISOString(), ruleset: rsMeta }, results: results.filter(Boolean) };
+                    const snap = { meta: { inputHash, execId, ts: new Date().toISOString(), ruleset: rsMeta, total: domains.length, processed: results.filter(Boolean).length }, results: results.filter(Boolean) };
                     await fsMod.writeFile(snapshotPath, JSON.stringify(snap), 'utf8');
                   }
                 } catch {}

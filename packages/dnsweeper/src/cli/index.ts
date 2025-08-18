@@ -8,6 +8,7 @@ import { registerRulesetCommand } from './commands/ruleset.js';
 import { registerAnnotateCommand } from './commands/annotate.js';
 import { registerEchoCommand } from './commands/echo.js';
 import { registerSweepCommand } from './commands/sweep.js';
+import { registerJobsCommand } from './commands/jobs.js';
 
 const program = new Command();
 
@@ -25,6 +26,7 @@ registerRulesetCommand(program);
 registerAnnotateCommand(program);
 registerEchoCommand(program);
 registerSweepCommand(program);
+registerJobsCommand(program);
 
 async function main() {
   const spinner = ora({ text: 'Bootstrapping CLI...', isEnabled: true }).start();
