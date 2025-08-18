@@ -121,6 +121,13 @@ npm start -- annotate out.json --contains example --mark keep:prod owner:web --o
 ## 進捗記録
 - 最新の進捗は [instructions/PROGRESS.md](instructions/PROGRESS.md) を参照
 
+## ベンチマーク（概況）
+- 実行手順・詳細は [docs/BENCHMARKS.md](docs/BENCHMARKS.md)
+- 直近の中央値（GitHub Actions, DoH+HTTP, timeout=800ms）:
+  - 100行: ~16.5s（rps ≈ 6.1）
+  - 10,000行: ~464.5s / 7.7min（rps ≈ 21.5）
+  - 100,000行: 実行中（完了後に追記）
+
 ## 運用ガイド
 - Push/CIの手順・Deploy Key・PAT の扱いは [docs/OPERATIONS.md](docs/OPERATIONS.md) を参照
 - CIの最新状態を確認: `GITHUB_TOKEN=xxxx pnpm run ci:status`
