@@ -124,9 +124,9 @@ npm start -- annotate out.json --contains example --mark keep:prod owner:web --o
 ## ベンチマーク（概況）
 - 実行手順・詳細は [docs/BENCHMARKS.md](docs/BENCHMARKS.md)
 - 直近の中央値（GitHub Actions, DoH+HTTP, timeout=800ms）:
-  - 100行: ~16.5s（rps ≈ 6.1）
-  - 10,000行: ~464.5s / 7.7min（rps ≈ 21.5）
-  - 100,000行: 実行中（完了後に追記）
+  - 100行: ~6.1s（rps ≈ 16.4）
+  - 10,000行: ~410.0s / 6.8min（rps ≈ 24.4）
+  - 100,000行: 別Runで取得予定（完了後に追記）
 
 ## 運用ガイド
 - Push/CIの手順・Deploy Key・PAT の扱いは [docs/OPERATIONS.md](docs/OPERATIONS.md) を参照
