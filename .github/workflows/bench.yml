@@ -6,12 +6,17 @@ on:
 jobs:
   bench:
     runs-on: ubuntu-latest
-    timeout-minutes: 120
+    timeout-minutes: 360
     strategy:
       fail-fast: false
       matrix:
         preset: [low-latency, high-latency, strict-rules]
         size: [100, 10000, 100000]
+        exclude:
+          - size: 100000
+            preset: high-latency
+          - size: 100000
+            preset: strict-rules
     steps:
       - uses: actions/checkout@v4
       - uses: pnpm/action-setup@v4
@@ -29,7 +34,9 @@ jobs:
           set +e
           for i in 1 2 3; do 
             echo "Run #$i preset=${{ matrix.preset }} size=${{ matrix.size }}";
-            node scripts/bench/bench.js --size ${{ matrix.size }} --preset examples/presets/${{ matrix.preset }}.json --http --doh --timeout 800 2>&1 | tee -a .tmp/bench_${{ matrix.preset }}_${{ matrix.size }}.log || true;
+            EXTRA=""
+            if [ "${{ matrix.size }}" -eq 100000 ]; then EXTRA="--timeout 500 --dns-timeout 1500"; else EXTRA="--timeout 800"; fi
+            node scripts/bench/bench.js --size ${{ matrix.size }} --preset examples/presets/${{ matrix.preset }}.json --http --doh $EXTRA 2>&1 | tee -a .tmp/bench_${{ matrix.preset }}_${{ matrix.size }}.log || true;
           done
       - name: Summarize
         if: always()
