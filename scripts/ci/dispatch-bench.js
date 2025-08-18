@@ -39,7 +39,38 @@ function post(url, body) {
 }
 
 const ref = process.env.BENCH_REF || 'feature/m4-hybrid';
-const workflow = 'bench.yml';
-const url = `https://api.github.com/repos/${REPO}/actions/workflows/${workflow}/dispatches`;
-await post(url, { ref });
-console.log(`Dispatched bench workflow on ${ref}`);
+
+async function dispatch() {
+  // Try full path first
+  let workflow = '.github/workflows/bench.yml';
+  let url = `https://api.github.com/repos/${REPO}/actions/workflows/${workflow}/dispatches`;
+  try {
+    await post(url, { ref });
+    console.log(`Dispatched bench workflow on ${ref} via ${workflow}`);
+    return;
+  } catch (e) {
+    console.error(`[warn] direct dispatch failed: ${e.message}`);
+  }
+  // Fallback: list workflows and find id
+  const listUrl = `https://api.github.com/repos/${REPO}/actions/workflows`;
+  const body = await new Promise((resolve, reject) => {
+    const req = https.request(listUrl, {
+      method: 'GET', headers: { Authorization: `Bearer ${TOKEN}`, Accept: 'application/vnd.github+json', 'User-Agent': 'dnsweeper-bench-dispatch' }
+    }, (res) => { const chunks=[]; res.on('data',(c)=>chunks.push(c)); res.on('end',()=> resolve(Buffer.concat(chunks).toString('utf8'))); });
+    req.on('error', reject); req.end();
+  });
+  let id = null;
+  try {
+    const j = JSON.parse(body);
+    for (const wf of j.workflows || []) {
+      if (String(wf.path || '').endsWith('bench.yml') || String(wf.name||'') === 'Bench (HTTP+DoH)') { id = wf.id; break; }
+    }
+  } catch {}
+  if (!id) throw new Error('bench workflow not found in repository');
+  url = `https://api.github.com/repos/${REPO}/actions/workflows/${id}/dispatches`;
+  await post(url, { ref });
+  console.log(`Dispatched bench workflow on ${ref} via id=${id}`);
+}
+
+await dispatch();
+

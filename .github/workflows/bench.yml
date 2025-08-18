@@ -6,6 +6,7 @@ on:
 jobs:
   bench:
     runs-on: ubuntu-latest
+    timeout-minutes: 120
     strategy:
       fail-fast: false
       matrix:
@@ -13,13 +14,14 @@ jobs:
         size: [100, 10000]
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-        with:
-          node-version: '20'
-          cache: 'pnpm'
       - uses: pnpm/action-setup@v4
         with:
           version: 9
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: PNPM version
+        run: pnpm -v
       - name: Install deps
         run: pnpm install --frozen-lockfile
       - name: Build
@@ -28,10 +30,19 @@ jobs:
         run: |
           for i in 1 2 3; do 
             echo "Run #$i preset=${{ matrix.preset }} size=${{ matrix.size }}";
-            node scripts/bench/bench.js --size ${{ matrix.size }} --preset examples/presets/${{ matrix.preset }}.json --http --doh 2>&1 | tee -a .tmp/bench_${{ matrix.preset }}_${{ matrix.size }}.log;
+            node scripts/bench/bench.js --size ${{ matrix.size }} --preset examples/presets/${{ matrix.preset }}.json --http --doh --timeout 800 2>&1 | tee -a .tmp/bench_${{ matrix.preset }}_${{ matrix.size }}.log;
           done
+      - name: Summarize
+        run: |
+          node scripts/bench/summarize.js --log .tmp/bench_${{ matrix.preset }}_${{ matrix.size }}.log --out-json .tmp/bench_${{ matrix.preset }}_${{ matrix.size }}.summary.json
+          node scripts/bench/summarize.js --log .tmp/bench_${{ matrix.preset }}_${{ matrix.size }}.log --md >> "$GITHUB_STEP_SUMMARY"
       - name: Upload bench logs
         uses: actions/upload-artifact@v4
         with:
           name: bench-logs-${{ matrix.preset }}-${{ matrix.size }}
           path: .tmp/bench_${{ matrix.preset }}_${{ matrix.size }}.log
+      - name: Upload bench summary
+        uses: actions/upload-artifact@v4
+        with:
+          name: bench-summary-${{ matrix.preset }}-${{ matrix.size }}
+          path: .tmp/bench_${{ matrix.preset }}_${{ matrix.size }}.summary.json
