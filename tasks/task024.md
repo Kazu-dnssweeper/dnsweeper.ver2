@@ -22,3 +22,8 @@
 - 期日: TBD（GitHub Milestone v0.3.0）
 - 担当: Maintainers
 - 依存: v0.1.0/v0.2.0 の修正取り込み
+
+## User-side Tasks（あなたの担当）
+- GitHub: Release手順の承認フロー、保護ブランチ/レビュー規則の見直し
+- Secrets/Permissions: `NPM_TOKEN` の権限範囲チェック、組織SSOの承認
+- Homebrew/Chocolatey 計画: 将来のTap/パッケージ配布に向けたOrg/Namespaceの検討（詳細は task020）

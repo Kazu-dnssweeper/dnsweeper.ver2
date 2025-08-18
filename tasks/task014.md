@@ -19,3 +19,8 @@
 
 ## Definition of Done
 - 監査/方針がREADME/Docsに明記され、CI監査を通過
+
+## User-side Tasks（あなたの担当）
+- セキュリティ連絡先: `security@<your-domain>` などの受信体制、SECURITY.mdの窓口運用
+- VDP（脆弱性報告方針）: 受け入れ手順/謝辞ポリシーの策定
+- 組織SSO/権限: GitHub/ npm/ GHCR のSSO承認・権限レビュー

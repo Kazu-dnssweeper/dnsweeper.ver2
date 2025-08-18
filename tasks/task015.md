@@ -19,3 +19,8 @@
 
 ## Definition of Done
 - 新規ユーザーが手順どおりに 1 回目の結果を得られる（レビューチェック）
+
+## User-side Tasks（あなたの担当）
+- 記事/宣伝: Zenn/Qiita/Note/ブログでQuickstart紹介、X/Blueskyにスレッド投稿
+- ランディング: GitHub Pagesや簡易LPの用意（概要/導入/ロードマップ/リンク）
+- ブランド: ロゴ/アイコンの準備（任意）

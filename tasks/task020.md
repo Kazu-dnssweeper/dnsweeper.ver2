@@ -18,3 +18,8 @@
 
 ## Definition of Done
 - 3チャネルのうち Docker+Homebrew を安定提供、chocoはβでも可
+
+## User-side Tasks（あなたの担当）
+- Docker/GHCR: 組織/名前空間の確認、公開ポリシー、必要に応じてPAT権限の付与
+- Homebrew: Tapリポジトリ（<org>/homebrew-tap）の用意と権限設定
+- Chocolatey: アカウント作成/検証（メール/ドメイン）、承認フローの把握

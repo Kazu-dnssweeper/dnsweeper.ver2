@@ -56,3 +56,5 @@
 - 品質: FP<1%の実測、主要OSでのスモーク安定
 - 配布: npm/Docker/Homebrew/Chocolateyのうち少なくともnpm+Dockerを安定提供
 - 運用: リリース/ロールバック手順、サポートポリシー/FAQ/トラブルシュート
+
+GitHub Milestones 一覧: https://github.com/Kazu-dnssweeper/dnsweeper.ver2/milestones

@@ -25,3 +25,10 @@
 - 期日: TBD（GitHub Milestone v0.1.0に準拠）
 - 担当: Maintainers（@Kazu-dnssweeper 他）
 - 依存: M8/M9の一部（配布/OS互換）
+
+## User-side Tasks（あなたの担当）
+- npm: アカウント/Org作成、2FA有効化、パッケージ名の先取り（dnsweeper が空いていない場合はスコープ検討）
+- GitHub Packages (GHCR): 名前空間の確認、公開可否の方針決定
+- Secrets: `NPM_TOKEN`（publish権限）をリポジトリに登録、必要なら `GHCR_PAT` も
+- ライセンス/著作権表記: Apache-2.0 の著作権者/年を確認
+- アナウンス準備: X/Bluesky等のハンドル確保、初回ポスト文案（Quickstart中心）
