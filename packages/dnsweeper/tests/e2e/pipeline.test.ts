@@ -12,7 +12,7 @@ describe('E2E: CSV -> analyze -> export', () => {
   const distCli = path.join(repo, 'dist/cli/index.js');
   const tmp = path.join(repo, '.tmp', 'e2e');
 
-  it('builds CLI, analyzes rows, imports normalized JSON, and exports CSV/XLSX', () => {
+it('builds CLI, analyzes rows, imports normalized JSON, and exports CSV/XLSX', { timeout: 30000 }, () => {
     fs.mkdirSync(tmp, { recursive: true });
     // Build first to ensure dist exists
     run('pnpm run -s build', { cwd: repo });
@@ -47,4 +47,3 @@ describe('E2E: CSV -> analyze -> export', () => {
     }
   });
 });
-

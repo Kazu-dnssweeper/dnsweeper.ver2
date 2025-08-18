@@ -3,13 +3,17 @@
   "qtypeWeights": {
     "A": 1,
     "AAAA": 0.5,
-    "CNAME": 1
+    "CNAME": 1,
+    "MX": 0.8,
+    "NS": 0.3,
+    "TXT": 0.2
   },
   "cnameExternalBoost": true,
-  "domainIncludes": ["example"],
+  "domainIncludes": ["example", "corp"],
   "rules": [
-    { "when": { "regex": "^.*\\.internal\\..*$" }, "risk": "low" },
-    { "when": { "contains": "openai" }, "scoreDelta": 0.2 }
+    { "when": { "regex": "^.*\\.internal\\..*$" }, "scoreDelta": 0.05 },
+    { "when": { "regex": "^test\\..*$" }, "scoreDelta": 0.05 },
+    { "when": { "contains": "cdn" }, "scoreDelta": 0.1 },
+    { "when": { "contains": "suspect" }, "risk": "high" }
   ]
 }
-

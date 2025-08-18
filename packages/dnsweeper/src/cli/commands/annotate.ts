@@ -7,6 +7,7 @@ type AnnotateOptions = {
   regex?: string;
   note?: string;
   label?: string[];
+  mark?: string[];
   pretty?: boolean;
 };
 
@@ -36,6 +37,7 @@ export function registerAnnotateCommand(program: Command) {
     .option('--regex <pattern>', 'match domain by JS RegExp (without flags)')
     .option('--note <text>', 'set or append note')
     .option('--label <name...>', 'add label(s)')
+    .option('--mark <k:v...>', 'add or update mark(s), e.g., keep:prod owner:web')
     .option('--pretty', 'pretty-print JSON', false)
     .description('Annotate JSON records with notes/labels by domain filter')
     .action(async (input: string, opts: AnnotateOptions) => {
@@ -46,6 +48,11 @@ export function registerAnnotateCommand(program: Command) {
 
         const re = opts.regex ? new RegExp(opts.regex) : undefined;
         const labels = opts.label || [];
+        const marks: Record<string, string> = {};
+        for (const m of opts.mark || []) {
+          const [k, v] = String(m).split(':');
+          if (k && typeof v !== 'undefined') marks[k] = v;
+        }
         let matched = 0;
 
         const out = (data as Record<string, unknown>[]).map((r) => {
@@ -58,6 +65,10 @@ export function registerAnnotateCommand(program: Command) {
             }
             if (labels.length) {
               next.labels = addLabels((next as any).labels, labels);
+            }
+            if (Object.keys(marks).length) {
+              const prev = (next as any).marks || {};
+              next.marks = { ...prev, ...marks };
             }
             return next;
           }

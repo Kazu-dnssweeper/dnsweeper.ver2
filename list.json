@@ -1,0 +1,13 @@
+[
+  {
+    "domain": "openai.com",
+    "risk": "high",
+    "https": 403,
+    "http": 403,
+    "dns": "NOERROR",
+    "skipped": "",
+    "action": "review",
+    "reason": "HTTP/TLS all failed",
+    "confidence": 0.7
+  }
+]

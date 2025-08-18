@@ -73,4 +73,72 @@ export function registerRulesetCommand(program: Command) {
         )
       );
     });
+
+  cmd
+    .command('validate')
+    .argument('<file>', 'ruleset JSON file to validate')
+    .description('Validate a ruleset JSON file against schema')
+    .action(async (file: string) => {
+      try {
+        const raw = await fs.promises.readFile(file, 'utf8');
+        const { RulesetSchema } = await import('../../core/rules/engine.js');
+        const json = JSON.parse(raw);
+        (RulesetSchema as any).parse(json);
+        // eslint-disable-next-line no-console
+        console.log('OK');
+      } catch (e) {
+        const msg = e instanceof Error ? e.message : String(e);
+        // eslint-disable-next-line no-console
+        console.error(msg);
+        process.exit(1);
+      }
+    });
+
+  // Weights/disable via config overlay
+  cmd
+    .command('weights')
+    .description('Adjust rule weights/disable via dnsweeper.config.json')
+    .option('--set <pairs...>', 'Set weights like R-003=10 R-005=20')
+    .option('--off <rules...>', 'Disable rules by ID (e.g., R-007 R-010)')
+    .option('--on <rules...>', 'Enable rules by ID (remove from disabled)')
+    .action(async (opts: { set?: string[]; off?: string[]; on?: string[] }) => {
+      const cfgPath = path.join(process.cwd(), 'dnsweeper.config.json');
+      let cfg: any = {};
+      try { cfg = JSON.parse(await fs.promises.readFile(cfgPath, 'utf8')); } catch {}
+      cfg.risk = cfg.risk || {};
+      cfg.risk.rules = cfg.risk.rules || {};
+      cfg.risk.rules.weights = cfg.risk.rules.weights || {};
+      cfg.risk.rules.disabled = cfg.risk.rules.disabled || [];
+      if (Array.isArray(opts.set)) {
+        // load known RULES for validation
+        let KNOWN: Set<string> = new Set();
+        try {
+          const mod = await import('../../core/risk/rules.js');
+          const RULES: Record<string, unknown> = (mod as any).RULES || {};
+          KNOWN = new Set(Object.keys(RULES));
+        } catch {}
+        for (const p of opts.set) {
+          const [k, v] = String(p).split('=');
+          const num = Number(v);
+          if (!/^R-\d{3}$/.test(k) || !isFinite(num) || Math.abs(num) > 100) {
+            // eslint-disable-next-line no-console
+            console.error(`invalid weight pair: ${p}`);
+            process.exit(1);
+          }
+          if (KNOWN.size && !KNOWN.has(k)) {
+            // eslint-disable-next-line no-console
+            console.error(`unknown rule id: ${k}`);
+            process.exit(1);
+          }
+          cfg.risk.rules.weights[k] = num;
+        }
+      }
+      const set = new Set<string>(cfg.risk.rules.disabled);
+      if (Array.isArray(opts.off)) for (const r of opts.off) set.add(String(r));
+      if (Array.isArray(opts.on)) for (const r of opts.on) set.delete(String(r));
+      cfg.risk.rules.disabled = Array.from(set.values());
+      await fs.promises.writeFile(cfgPath, JSON.stringify(cfg, null, 2), 'utf8');
+      // eslint-disable-next-line no-console
+      console.log(`updated: ${cfgPath}`);
+    });
 }

@@ -4,7 +4,7 @@ import { z } from 'zod';
 
 export type RiskLevel = 'low' | 'medium' | 'high';
 
-const RulesetSchema = z.object({
+export const RulesetSchema = z.object({
   name: z.string().optional(),
   domainIncludes: z.array(z.string()).optional(),
   domainRegex: z.array(z.string()).optional(),
@@ -89,4 +89,3 @@ export function applyRules(
   if (score <= 0.7) return 'medium';
   return 'high';
 }
-

@@ -1,0 +1,15 @@
+{
+  "analyze": {
+    "qps": 50,
+    "concurrency": 40,
+    "timeoutMs": 8000,
+    "progressIntervalMs": 1500,
+    "qpsBurst": 10
+  },
+  "risk": {
+    "rules": {
+      "disabled": [],
+      "weights": {}
+    }
+  }
+}

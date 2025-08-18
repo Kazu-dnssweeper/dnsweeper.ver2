@@ -1,22 +1,128 @@
 [
   {
     "domain": "example.com",
-    "risk": "high",
+    "risk": "low",
     "https": {
-      "ok": false
+      "ok": true,
+      "status": 200,
+      "redirects": 0,
+      "finalUrl": "https://example.com/",
+      "elapsedMs": 1063,
+      "history": [],
+      "tls": {
+        "issuer": "DigiCert Inc",
+        "sni": "example.com"
+      }
     },
     "http": {
       "ok": false
-    }
+    },
+    "dns": {
+      "status": "NOERROR",
+      "chain": [
+        {
+          "type": "A",
+          "data": "23.215.0.136",
+          "ttl": 179
+        },
+        {
+          "type": "A",
+          "data": "23.192.228.80",
+          "ttl": 179
+        },
+        {
+          "type": "A",
+          "data": "23.215.0.138",
+          "ttl": 179
+        },
+        {
+          "type": "A",
+          "data": "96.7.128.175",
+          "ttl": 179
+        },
+        {
+          "type": "A",
+          "data": "96.7.128.198",
+          "ttl": 179
+        },
+        {
+          "type": "A",
+          "data": "23.192.228.84",
+          "ttl": 179
+        }
+      ],
+      "elapsedMs": 134,
+      "queries": [
+        {
+          "type": "A",
+          "status": "NOERROR",
+          "elapsedMs": 134,
+          "answers": 6
+        }
+      ]
+    },
+    "action": "keep",
+    "reason": "ok",
+    "reasonCode": "OK",
+    "confidence": 0.3
   },
   {
     "domain": "openai.com",
     "risk": "high",
     "https": {
-      "ok": false
+      "ok": false,
+      "status": 403,
+      "redirects": 0,
+      "finalUrl": "https://openai.com/",
+      "elapsedMs": 229,
+      "history": [],
+      "tls": {
+        "issuer": "Let's Encrypt",
+        "sni": "openai.com"
+      },
+      "errorType": "http4xx"
     },
     "http": {
-      "ok": false
-    }
+      "ok": false,
+      "status": 403,
+      "redirects": 1,
+      "finalUrl": "https://openai.com/",
+      "elapsedMs": 184,
+      "history": [
+        {
+          "url": "http://openai.com/",
+          "status": 301
+        }
+      ],
+      "errorType": "http4xx"
+    },
+    "dns": {
+      "status": "NOERROR",
+      "chain": [
+        {
+          "type": "A",
+          "data": "172.64.154.211",
+          "ttl": 10
+        },
+        {
+          "type": "A",
+          "data": "104.18.33.45",
+          "ttl": 10
+        }
+      ],
+      "elapsedMs": 106,
+      "queries": [
+        {
+          "type": "A",
+          "status": "NOERROR",
+          "elapsedMs": 106,
+          "answers": 2
+        }
+      ]
+    },
+    "action": "review",
+    "reason": "HTTP/TLS all failed",
+    "reasonCode": "HTTP_ALL_FAILED",
+    "confidence": 0.7
   }
 ]

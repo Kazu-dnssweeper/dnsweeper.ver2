@@ -6,42 +6,52 @@ on:
 jobs:
   bench:
     runs-on: ubuntu-latest
+    timeout-minutes: 360
     strategy:
       fail-fast: false
       matrix:
         preset: [low-latency, high-latency, strict-rules]
-        size: [100, 10000]
+        size: [100, 10000, 100000]
+        exclude:
+          - size: 100000
+            preset: high-latency
+          - size: 100000
+            preset: strict-rules
     steps:
       - uses: actions/checkout@v4
-
+      - uses: pnpm/action-setup@v4
       - uses: actions/setup-node@v4
         with:
           node-version: '20'
-          cache: 'pnpm'
-
-      - uses: pnpm/action-setup@v4
-        with:
-          version: 9
-
+      - name: PNPM version
+        run: pnpm -v
       - name: Install deps
-        run: pnpm install --frozen-lockfile
-
+        run: pnpm install --no-frozen-lockfile
       - name: Build
         run: pnpm -C packages/dnsweeper run build
-
       - name: Bench (3x)
         run: |
-          mkdir -p .tmp
-          for i in 1 2 3; do
+          set +e
+          for i in 1 2 3; do 
             echo "Run #$i preset=${{ matrix.preset }} size=${{ matrix.size }}";
-            node scripts/bench/bench.js \
-              --size ${{ matrix.size }} \
-              --preset examples/presets/${{ matrix.preset }}.json \
-              --http --doh 2>&1 | tee -a .tmp/bench_${{ matrix.preset }}_${{ matrix.size }}.log;
+            EXTRA=""
+            if [ "${{ matrix.size }}" -eq 100000 ]; then EXTRA="--timeout 500 --dns-timeout 1500"; else EXTRA="--timeout 800"; fi
+            node scripts/bench/bench.js --size ${{ matrix.size }} --preset examples/presets/${{ matrix.preset }}.json --http --doh $EXTRA 2>&1 | tee -a .tmp/bench_${{ matrix.preset }}_${{ matrix.size }}.log || true;
           done
-
+      - name: Summarize
+        if: always()
+        run: |
+          node scripts/bench/summarize.js --log .tmp/bench_${{ matrix.preset }}_${{ matrix.size }}.log --out-json .tmp/bench_${{ matrix.preset }}_${{ matrix.size }}.summary.json
+          node scripts/bench/summarize.js --log .tmp/bench_${{ matrix.preset }}_${{ matrix.size }}.log --md >> "$GITHUB_STEP_SUMMARY"
       - name: Upload bench logs
+        if: always()
         uses: actions/upload-artifact@v4
         with:
           name: bench-logs-${{ matrix.preset }}-${{ matrix.size }}
           path: .tmp/bench_${{ matrix.preset }}_${{ matrix.size }}.log
+      - name: Upload bench summary
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: bench-summary-${{ matrix.preset }}-${{ matrix.size }}
+          path: .tmp/bench_${{ matrix.preset }}_${{ matrix.size }}.summary.json

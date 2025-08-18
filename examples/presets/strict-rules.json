@@ -1,0 +1,20 @@
+{
+  "analyze": {
+    "qps": 100,
+    "concurrency": 30,
+    "timeoutMs": 5000,
+    "progressIntervalMs": 1000,
+    "qpsBurst": 10
+  },
+  "risk": {
+    "rules": {
+      "disabled": [],
+      "weights": {
+        "R-003": 20,
+        "R-005": 20,
+        "R-006": 15,
+        "R-007": 15
+      }
+    }
+  }
+}

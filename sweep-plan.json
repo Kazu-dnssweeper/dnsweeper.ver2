@@ -1,0 +1,11 @@
+[
+  {
+    "domain": "openai.com",
+    "type": "",
+    "action": "review",
+    "reason": "HTTP/TLS all failed",
+    "confidence": 0.7,
+    "code": "HTTP_ALL_FAILED",
+    "risk": "high"
+  }
+]

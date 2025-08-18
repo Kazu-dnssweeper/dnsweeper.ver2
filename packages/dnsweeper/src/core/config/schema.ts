@@ -3,9 +3,35 @@ import path from 'node:path';
 import { z } from 'zod';
 
 export const ConfigSchema = z.object({
-  // Reserved for future use (M1: read-only placeholder)
   defaultTtl: z.number().int().positive().optional(),
-});
+  risk: z
+    .object({
+      lowTtlSec: z.number().int().positive().optional(),
+      servfailMinAttempts: z.number().int().nonnegative().optional(),
+      nxdomainSubMin: z.number().int().nonnegative().optional(),
+      nxdomainSubMax: z.number().int().nonnegative().optional(),
+      rules: z
+        .object({
+          weights: z.record(z.string(), z.number()).optional(),
+          disabled: z.array(z.string()).optional(),
+        })
+        .optional(),
+    })
+    .optional(),
+  analyze: z
+    .object({
+      qps: z.number().int().nonnegative().optional(),
+      concurrency: z.number().int().positive().optional(),
+      timeoutMs: z.number().int().positive().optional(),
+      dohEndpoint: z.string().optional(),
+    })
+    .optional(),
+  annotate: z
+    .object({
+      defaultLabels: z.array(z.string()).optional(),
+    })
+    .optional(),
+}).strict();
 
 export type AppConfig = z.infer<typeof ConfigSchema>;
 
@@ -24,4 +50,3 @@ export async function loadConfig(cwd = process.cwd()): Promise<AppConfig | null>
   }
   return null;
 }
-

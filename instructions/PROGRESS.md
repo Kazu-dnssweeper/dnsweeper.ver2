@@ -33,3 +33,57 @@ TASK-001 未達の補完状況:
 - ✅ 正規化パーサ（name/type/content/ttl/proxied/aliasTarget）
 - ✅ `import` 拡張：`--provider/--encoding/--errors`、失敗行を `errors.csv` に出力
 - ⏳ ツールチェーン（pnpm/tsup/vitest/eslint/prettier/CI）は環境制約のため未着手（要ネット許可）
+
+---
+
+# PROGRESS (TASK-003: Risk Engine MVP)
+
+- ✅ ルール実装: R-001〜R-010（新規: R-004/合成ヒント, R-008/CNAME終端なし, R-009/TXT弱SPF）
+- ✅ 型拡張: `RiskContext.dns.chain` を追加
+- ✅ しきい値設定: `dnsweeper.config.json` の `risk` で R-004 閾値を上書き可能（`lowTtlSec` 等）
+- ✅ ドキュメント: `docs/RISK_ENGINE.md`（Evidence書式/ルール仕様/閾値設定/拡張方法）
+- ✅ ユニットテスト拡充＋複合ケース（coverage gates → lines/functions/statements 80%, branches 70%）
+- ✅ analyze連携: Risk EngineへHTTP+DNSを投影し合算（既存の NXDOMAIN→high ヒューリスティックは保持/ダウングレード抑止）
+
+---
+
+# PROGRESS (TASK-004: HTTP Prober & 合算スコア)
+
+- ✅ HTTP Prober 実装: HEAD→失敗時GET、手動リダイレクト追跡、TLS最小情報（ALPN/Issuer/SNI）、失敗分類（timeout/dns/tls/net/http4xx/http5xx）
+- ✅ DNS→HTTP の直列化（負荷と制御性向上）
+- ✅ スキーマ拡張（任意項目）: `https.tls`, `riskScore`, `evidences`, `candidates`
+- ✅ Evidence 出力: `--include-evidence` で Risk Engine の score/evidences をJSON出力
+- ✅ SRV 対応: candidates 注釈＋ `--probe-srv` で必要時に追加プローブ
+- ✅ 解析サマリに HTTP エラー種別の集計を追加（stderr出力）
+- ✅ list 拡張: `--show-tls`/`--show-evidence`/`--show-candidates` 列を追加（table/csv/jsonで出力）
+- ✅ README 更新: 新オプション（`--include-evidence`/`--probe-srv`）とTLS/HTTP集計の記載
+
+---
+
+# PROGRESS (CI/Operations)
+
+- ✅ CI 分割: Unit（Push/PR自動）/ Network（手動/スケジュール）
+- ✅ 安定化: pnpm キャッシュ、テストのリトライラッパ（`scripts/ci/run-with-retry.sh`）
+- ✅ 自動リラン: `.github/workflows/auto-rerun-on-failure.yml`（Unit/Netを最大3attemptまでサーバ側で自動再実行）
+- ✅ ローカル pre-push フック: `scripts/setup-githooks.sh` で `test:unit`+`lint` を自動実行
+- ✅ SSH 運用: `setup-deploy-key.sh`/`ssh-persist.sh`/`ssh-test.sh`/`remote-to-ssh.sh`
+- ✅ 片付け: `scripts/logout.sh`（DRY-RUN/--force、ローカル資格情報の削除）
+- ✅ 週次の大規模フォーマット検証: `.github/workflows/ci-large.yml`（LARGE_E2E=1 で10k/100kをサイズゲート実行）
+
+---
+
+# PROGRESS (TASK-006: 設定 & チューニング)
+
+- ✅ 設定スキーマ拡張: `dnsweeper.config.json`（risk thresholds/rules overrides, analyze defaults, annotate defaults）
+- ✅ Risk Engine 反映: `weights`/`disabled` を `evaluateRisk` に適用
+- ✅ ruleset CLI: `ruleset weights --set/--off/--on` で設定ファイルを更新
+- ✅ annotate マーク付与: `--mark key:value` で `marks` をマージ
+- ✅ analyze レイヤリング: configの既定（qps/concurrency/timeoutMs/dohEndpoint）をCLIで未指定時に反映
+- ✅ 中断安全: `--snapshot`/`--resume` によるスナップショット保存と再開（入力ハッシュ一致時に未処理のみ）
+
+# PROGRESS (TASK-007: 調整 & 性能検証)
+
+- ✅ ベンチ基盤: `scripts/bench/bench.js`（CSV生成→analyze→[bench]出力）
+- ✅ 設定プリセット: `examples/presets/low-latency.json` / `high-latency.json` / `strict-rules.json`
+- ✅ QPSゲート微調整: バースト許容量（analyze.qpsBurst）＋平滑化ペーシング
+- ⏳ 計測とレポート作成: docs/BENCHMARKS.md に手順とテンプレを用意（次は100/10k→100kの順で中央値を取得）

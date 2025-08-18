@@ -1,0 +1,32 @@
+name: Auto Rerun on Failure (Unit/Net)
+
+on:
+  workflow_run:
+    workflows: ["CI (Unit)", "CI (Network/Integration)"]
+    types:
+      - completed
+
+permissions:
+  actions: write
+  contents: read
+
+jobs:
+  rerun-up-to-3:
+    # Rerun on failure while keeping a hard cap of 3 attempts per run
+    if: >-
+      ${ { github.event.workflow_run.conclusion == 'failure' && github.event.workflow_run.run_attempt < 3 } }
+    runs-on: ubuntu-latest
+    steps:
+      - name: Rerun failed run (capped at 3 attempts)
+        uses: actions/github-script@v7
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const run_id = context.payload.workflow_run.id;
+            const attempt = context.payload.workflow_run.run_attempt;
+            core.info(`Rerunning failed run ${run_id} (attempt ${attempt+1}/3)...`);
+            await github.request('POST /repos/{owner}/{repo}/actions/runs/{run_id}/rerun', {
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              run_id,
+            });

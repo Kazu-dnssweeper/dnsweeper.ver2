@@ -1,0 +1,10 @@
+#!/usr/bin/env bash
+# Local pre-push hook to keep main green: runs unit tests + lint before push.
+
+set -euo pipefail
+
+echo "[pre-push] Running unit tests and lint..."
+pnpm -C packages/dnsweeper run test:unit
+pnpm -C packages/dnsweeper run lint
+echo "[pre-push] OK"
+

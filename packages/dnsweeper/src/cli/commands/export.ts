@@ -8,6 +8,7 @@ type ExportOptions = {
   format: 'json' | 'csv' | 'xlsx';
   output: string;
   pretty?: boolean;
+  verbose?: boolean;
 };
 
 export function registerExportCommand(program: Command) {
@@ -17,9 +18,11 @@ export function registerExportCommand(program: Command) {
     .requiredOption('-o, --output <file>', 'output file path')
     .option('-f, --format <fmt>', 'json|csv|xlsx', 'json')
     .option('--pretty', 'pretty JSON (when --format=json)', false)
+    .option('--verbose', 'print perf stats to stderr', false)
     .description('Export records to JSON/CSV/XLSX')
     .action(async (input: string, opts: ExportOptions) => {
       try {
+        const t0 = Date.now();
         const raw = await fs.promises.readFile(input, 'utf8');
         const data = JSON.parse(raw);
         if (!Array.isArray(data)) {
@@ -36,6 +39,17 @@ export function registerExportCommand(program: Command) {
           await writeXlsx(records, opts.output);
         } else {
           throw new Error(`unsupported format: ${opts.format}`);
+        }
+        if (opts.verbose) {
+          const elapsed = Date.now() - t0;
+          let size = 0;
+          try { size = (await fs.promises.stat(opts.output)).size; } catch {}
+          const mem = process.memoryUsage?.().rss ?? 0;
+          const rps = records.length > 0 ? (records.length / (elapsed / 1000)) : 0;
+          // eslint-disable-next-line no-console
+          console.error(
+            `[perf] count=${records.length} elapsed_ms=${elapsed} out_bytes=${size} rss_mb=${(mem / (1024*1024)).toFixed(1)} rps=${rps.toFixed(1)}`
+          );
         }
         // eslint-disable-next-line no-console
         console.log(`wrote ${fmt}: ${opts.output}`);
