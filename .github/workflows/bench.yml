@@ -10,13 +10,8 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        preset: [low-latency, high-latency, strict-rules]
-        size: [100, 10000, 100000]
-        exclude:
-          - size: 100000
-            preset: high-latency
-          - size: 100000
-            preset: strict-rules
+        preset: [low-latency]
+        size: [100000]
     steps:
       - uses: actions/checkout@v4
       - uses: pnpm/action-setup@v4
@@ -29,15 +24,12 @@ jobs:
         run: pnpm install --no-frozen-lockfile
       - name: Build
         run: pnpm -C packages/dnsweeper run build
-      - name: Bench (3x)
+      - name: Bench (1x)
         run: |
-          set +e
-          for i in 1 2 3; do 
-            echo "Run #$i preset=${{ matrix.preset }} size=${{ matrix.size }}";
-            EXTRA=""
-            if [ "${{ matrix.size }}" -eq 100000 ]; then EXTRA="--timeout 500 --dns-timeout 1500"; else EXTRA="--timeout 800"; fi
-            node scripts/bench/bench.js --size ${{ matrix.size }} --preset examples/presets/${{ matrix.preset }}.json --http --doh $EXTRA 2>&1 | tee -a .tmp/bench_${{ matrix.preset }}_${{ matrix.size }}.log || true;
-          done
+          set -e
+          mkdir -p .tmp
+          echo "Run #1 preset=${{ matrix.preset }} size=${{ matrix.size }}";
+          node scripts/bench/bench.js --size ${{ matrix.size }} --preset examples/presets/${{ matrix.preset }}.json --http --doh --timeout 500 --dns-timeout 1500 2>&1 | tee -a .tmp/bench_${{ matrix.preset }}_${{ matrix.size }}.log
       - name: Summarize
         if: always()
         run: |
