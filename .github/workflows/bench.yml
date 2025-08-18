@@ -21,7 +21,7 @@ jobs:
       - name: PNPM version
         run: pnpm -v
       - name: Install deps
-        run: pnpm install --frozen-lockfile
+        run: pnpm install --no-frozen-lockfile
       - name: Build
         run: pnpm -C packages/dnsweeper run build
       - name: Bench (3x)
