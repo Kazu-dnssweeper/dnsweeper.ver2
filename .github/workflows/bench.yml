@@ -11,7 +11,7 @@ jobs:
       fail-fast: false
       matrix:
         preset: [low-latency, high-latency, strict-rules]
-        size: [100, 10000]
+        size: [100, 10000, 100000]
     steps:
       - uses: actions/checkout@v4
       - uses: pnpm/action-setup@v4
