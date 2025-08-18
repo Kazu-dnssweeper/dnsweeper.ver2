@@ -47,3 +47,36 @@ jobs:
         with:
           name: bench-summary-${{ matrix.preset }}-${{ matrix.size }}
           path: .tmp/bench_${{ matrix.preset }}_${{ matrix.size }}.summary.json
+
+  standard:
+    runs-on: ubuntu-latest
+    needs: bench
+    timeout-minutes: 360
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: PNPM version
+        run: pnpm -v
+      - name: Install deps
+        run: pnpm install --no-frozen-lockfile
+      - name: Build
+        run: pnpm -C packages/dnsweeper run build
+      - name: Bench Standard (100k x1, HTTP on NXDOMAIN)
+        run: |
+          set -e
+          mkdir -p .tmp/bench
+          # generate 100k CSV (same as bench.js does)
+          node -e "const fs=require('fs');const n=100000;const a=['domain'];for(let i=0;i<n;i++)a.push(`host${i}.example.com`);fs.mkdirSync('.tmp/bench',{recursive:true});fs.writeFileSync('.tmp/bench/bench-100000.csv',a.join('\n'));"
+          echo "Run #1 preset=low-latency size=100000 (standard)";
+          timeout 180m node packages/dnsweeper/dist/cli/index.js analyze .tmp/bench/bench-100000.csv \
+            --http-check --doh --timeout 500 --dns-timeout 1500 --qps 200 --include-original \
+            --http-on-nxdomain --summary --output .tmp/bench/out-100000.standard.json 2>&1 | tee .tmp/bench_low-latency_100000.standard.log
+      - name: Upload standard logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: bench-logs-low-latency-100000-standard
+          path: .tmp/bench_low-latency_100000.standard.log
