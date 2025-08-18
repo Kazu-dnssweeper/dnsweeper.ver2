@@ -1,0 +1,49 @@
+name: Bench (Quick 100k)
+
+on:
+  workflow_dispatch:
+
+jobs:
+  bench_quick:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: PNPM version
+        run: pnpm -v
+      - name: Install deps
+        run: pnpm install --no-frozen-lockfile
+      - name: Build
+        run: pnpm -C packages/dnsweeper run build
+      - name: Bench Quick (100k x1)
+        run: |
+          set -e
+          mkdir -p .tmp
+          echo "Run #1 preset=low-latency size=100000 (quick)";
+          node scripts/bench/bench.js \
+            --size 100000 \
+            --preset examples/presets/low-latency.json \
+            --http --doh \
+            --timeout 300 --dns-timeout 1000 --dns-retries 1 --qps 300 \
+            2>&1 | tee -a .tmp/bench_low-latency_100000.quick.log
+      - name: Summarize
+        if: always()
+        run: |
+          node scripts/bench/summarize.js --log .tmp/bench_low-latency_100000.quick.log --out-json .tmp/bench_low-latency_100000.quick.summary.json
+          node scripts/bench/summarize.js --log .tmp/bench_low-latency_100000.quick.log --md >> "$GITHUB_STEP_SUMMARY"
+      - name: Upload bench logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: bench-logs-low-latency-100000-quick
+          path: .tmp/bench_low-latency_100000.quick.log
+      - name: Upload bench summary
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: bench-summary-low-latency-100000-quick
+          path: .tmp/bench_low-latency_100000.quick.summary.json

@@ -10,7 +10,7 @@ import { execSync, spawnSync } from 'node:child_process';
 
 function parseArgs() {
   const args = process.argv.slice(2);
-  const out = { size: 100, preset: '', http: false, doh: false, timeout: 0, dnsTimeout: 0 };
+  const out = { size: 100, preset: '', http: false, doh: false, timeout: 0, dnsTimeout: 0, qps: 0, dnsRetries: 0 };
   for (let i = 0; i < args.length; i++) {
     const a = args[i];
     if (a === '--size') out.size = parseInt(args[++i], 10);
@@ -19,6 +19,8 @@ function parseArgs() {
     else if (a === '--doh') out.doh = true;
     else if (a === '--timeout') out.timeout = parseInt(args[++i], 10);
     else if (a === '--dns-timeout') out.dnsTimeout = parseInt(args[++i], 10);
+    else if (a === '--qps') out.qps = parseInt(args[++i], 10);
+    else if (a === '--dns-retries') out.dnsRetries = parseInt(args[++i], 10);
   }
   return out;
 }
@@ -32,7 +34,7 @@ function genCsv(n, dir) {
 }
 
 function main() {
-  const { size, preset, http, doh, timeout, dnsTimeout } = parseArgs();
+  const { size, preset, http, doh, timeout, dnsTimeout, qps, dnsRetries } = parseArgs();
   const repo = path.resolve('.');
   const outDir = path.join(repo, '.tmp', 'bench');
   fs.mkdirSync(outDir, { recursive: true });
@@ -56,6 +58,8 @@ function main() {
   if (doh) args.push('--doh');
   if (timeout && Number.isFinite(timeout) && timeout > 0) args.push('--timeout', String(timeout));
   if (doh && dnsTimeout && Number.isFinite(dnsTimeout) && dnsTimeout > 0) args.push('--dns-timeout', String(dnsTimeout));
+  if (qps && Number.isFinite(qps) && qps > 0) args.push('--qps', String(qps));
+  if (doh && dnsRetries && Number.isFinite(dnsRetries) && dnsRetries > 0) args.push('--dns-retries', String(dnsRetries));
   const t0 = Date.now();
   const res = spawnSync('node', [cli, ...args], { encoding: 'utf8' });
   const elapsed = Date.now() - t0;
