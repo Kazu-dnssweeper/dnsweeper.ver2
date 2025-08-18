@@ -1,5 +1,7 @@
 # DNSweeper
 
+[English](README.en.md) | 日本語
+
 ![CI Unit](https://github.com/Kazu-dnssweeper/dnsweeper.ver2/actions/workflows/ci-unit.yml/badge.svg)
 ![CI Net](https://github.com/Kazu-dnssweeper/dnsweeper.ver2/actions/workflows/ci-net.yml/badge.svg)
 ![CI Large](https://github.com/Kazu-dnssweeper/dnsweeper.ver2/actions/workflows/ci-large.yml/badge.svg)
@@ -74,4 +76,3 @@ npm start -- ruleset weights --set R-003=10 R-005=20
 - 詳細: docs/SPEC.md, docs/RISK_ENGINE.md, docs/OPERATIONS.md, ROADMAP.md
 - フィードバック: Issues/Discussions歓迎（入力/出力/既定値/ルール優先度など）
 - ライセンス: Apache-2.0
-
