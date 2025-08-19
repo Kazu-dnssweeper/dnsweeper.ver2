@@ -1,0 +1,17 @@
+{
+  "analyze": {
+    "qps": 220,
+    "concurrency": 40,
+    "timeoutMs": 800,
+    "progressIntervalMs": 1500,
+    "qpsBurst": 30,
+    "dohEndpoint": "https://dns.google/resolve"
+  },
+  "risk": {
+    "rules": {
+      "disabled": [],
+      "weights": {}
+    }
+  }
+}
+

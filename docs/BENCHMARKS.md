@@ -27,6 +27,9 @@ node scripts/bench/bench.js --size 10000 --preset examples/presets/strict-rules.
 
 # ネットワークを使わずパイプラインだけ計測（生成→解析→出力）
 node scripts/bench/bench.js --size 10000
+
+# NXDOMAIN でも HTTP を実行するベンチ（オプション）
+node scripts/bench/bench.js --size 100000 --preset examples/presets/low-latency.json --http --doh --http-on-nxdomain
 ```
 
 実行時の出力ファイル:
@@ -82,6 +85,7 @@ node scripts/bench/bench.js --size 10000
 - 負荷制御: `qps` と `qpsBurst` を併用（瞬間バーストと平滑化のバランス）
 - 進捗オーバーヘッド削減: `progressIntervalMs` を 1000ms 以上に設定
 - タイムアウト/再試行: ネット状況に応じて `timeoutMs` とリトライ回数（将来拡張）を調整
+ - DoHキャッシュ: summary の `[dns] hit_rate` を参考にQPS/タイムアウトを調整
 
 ## DoD との対応
 - 本ドキュメントに沿って 10 万行×3 回の中央値を取得し、NFR を満たす値を README の実測セクションに追記してください。
