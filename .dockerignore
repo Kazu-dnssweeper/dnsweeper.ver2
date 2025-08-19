@@ -1,0 +1,11 @@
+.git
+.github
+.tmp
+node_modules
+artifacts
+dist
+*.log
+*.sarif
+npm-audit.json
+osv.sarif
+

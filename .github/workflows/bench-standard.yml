@@ -1,0 +1,55 @@
+name: Bench (Standard 100k)
+
+on:
+  workflow_dispatch:
+
+jobs:
+  bench_standard:
+    runs-on: ubuntu-latest
+    timeout-minutes: 360
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: PNPM version
+        run: pnpm -v
+      - name: Install deps
+        run: pnpm install --no-frozen-lockfile
+      - name: Build
+        run: pnpm -C packages/dnsweeper run build
+      - name: Bench Standard (100k x1, HTTP on NXDOMAIN)
+        run: |
+          set -e
+          mkdir -p .tmp
+          echo "Run #1 preset=low-latency size=100000 (standard)";
+          timeout 180m node scripts/bench/bench.js \
+            --size 100000 \
+            --preset examples/presets/low-latency.json \
+            --http --doh \
+            --timeout 500 --dns-timeout 1500 --qps 200 \
+            2>&1 | sed 's/$/ --http-on-nxdomain/' | tee .tmp/bench_low-latency_100000.standard.cmd
+          # run with extra flag (not supported by bench.js, so call CLI directly)
+          timeout 180m node packages/dnsweeper/dist/cli/index.js analyze .tmp/bench/bench-100000.csv \
+            --http-check --doh --timeout 500 --dns-timeout 1500 --qps 200 --include-original \
+            --http-on-nxdomain --output .tmp/bench/out-100000.standard.json 2>&1 | tee -a .tmp/bench_low-latency_100000.standard.log
+      - name: Summarize
+        if: always()
+        run: |
+          node scripts/bench/summarize.js --log .tmp/bench_low-latency_100000.standard.log --out-json .tmp/bench_low-latency_100000.standard.summary.json || true
+          node scripts/bench/summarize.js --log .tmp/bench_low-latency_100000.standard.log --md >> "$GITHUB_STEP_SUMMARY" || true
+      - name: Upload bench logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: bench-logs-low-latency-100000-standard
+          path: |
+            .tmp/bench_low-latency_100000.standard.log
+            .tmp/bench_low-latency_100000.standard.cmd
+      - name: Upload bench summary
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: bench-summary-low-latency-100000-standard
+          path: .tmp/bench_low-latency_100000.standard.summary.json

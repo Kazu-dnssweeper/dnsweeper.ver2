@@ -1,0 +1,68 @@
+rules:
+  # Custom ReDoS guard for dynamic RegExp from user-controlled inputs
+  - id: dnsweeper-node-redos
+    patterns:
+      - pattern: new RegExp($PATTERN)
+      - metavariable-pattern:
+          metavariable: $PATTERN
+          pattern: /(.+\+){2,}/
+    message: "Potential ReDoS in dynamic RegExp"
+    severity: ERROR
+    languages: [javascript, typescript]
+
+  # Command Injection: child_process.* with dynamic command strings
+  - id: dnsweeper-command-injection
+    message: "Potential command injection via child_process with dynamic input"
+    severity: ERROR
+    languages: [javascript, typescript]
+    patterns:
+      - pattern-either:
+          - pattern: require('child_process').exec($CMD, ...)
+          - pattern: require('child_process').execSync($CMD, ...)
+          - pattern: require('child_process').spawn($CMD, ...)
+          - pattern: require('child_process').spawnSync($CMD, ...)
+          - pattern: child_process.exec($CMD, ...)
+          - pattern: child_process.execSync($CMD, ...)
+          - pattern: child_process.spawn($CMD, ...)
+          - pattern: child_process.spawnSync($CMD, ...)
+      - metavariable-pattern:
+          metavariable: $CMD
+          pattern: /[`\+]|\$\{/  # template literal or string concat or interpolation
+
+  # Path Traversal risk: fs operations with variable path (heuristic)
+  - id: dnsweeper-path-traversal
+    message: "Potential path traversal; ensure path is resolved and sandboxed"
+    severity: WARNING
+    languages: [javascript, typescript]
+    patterns:
+      - pattern-either:
+          - pattern: fs.readFile($P, ...)
+          - pattern: fs.readFileSync($P, ...)
+          - pattern: fs.writeFile($P, ...)
+          - pattern: fs.writeFileSync($P, ...)
+          - pattern: fs.createReadStream($P, ...)
+          - pattern: fs.createWriteStream($P, ...)
+          - pattern: fs.promises.readFile($P, ...)
+          - pattern: fs.promises.writeFile($P, ...)
+      - metavariable-pattern:
+          metavariable: $P
+          pattern: $X
+    metavariables:
+      - metavariable: $X
+        regex: ".+"  # any variable; manual triage with review
+
+  # SSRF heuristic: fetch/undici to variable URL without validation
+  - id: dnsweeper-ssrf
+    message: "Potential SSRF; validate scheme/host and restrict targets"
+    severity: WARNING
+    languages: [javascript, typescript]
+    patterns:
+      - pattern-either:
+          - pattern: fetch($U, ...)
+          - pattern: undici.fetch($U, ...)
+      - metavariable-pattern:
+          metavariable: $U
+          pattern: $V
+    metavariables:
+      - metavariable: $V
+        regex: ".+"  # any variable URL

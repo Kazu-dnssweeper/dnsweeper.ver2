@@ -1,0 +1,50 @@
+name: Bench Complete Notifier
+
+on:
+  workflow_run:
+    workflows: ["Bench (HTTP+DoH)", "Bench (Quick 100k)"]
+    types: [completed]
+
+permissions:
+  actions: read
+  contents: write
+  issues: write
+
+jobs:
+  notify:
+    if: ${{ github.event.workflow_run.conclusion == 'success' }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Download logs of triggering run
+        env:
+          RUN_ID: ${{ github.event.workflow_run.id }}
+          REPO: ${{ github.repository }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          mkdir -p .tmp/gha_logs
+          curl -L -sS -H "Authorization: Bearer $GH_TOKEN" -H "Accept: application/vnd.github+json" \
+            "https://api.github.com/repos/$REPO/actions/runs/$RUN_ID/logs" -o .tmp/gha_logs/logs.zip
+          unzip -oq .tmp/gha_logs/logs.zip -d .tmp/gha_logs/unz || true
+          rg -n "\\[bench\\] size=" -S .tmp/gha_logs/unz > .tmp/bench_latest.log || true
+      - name: Summarize
+        id: sum
+        run: |
+          if [ ! -s .tmp/bench_latest.log ]; then echo "no_bench_lines=1" >> $GITHUB_OUTPUT; exit 0; fi
+          node scripts/bench/summarize.js --log .tmp/bench_latest.log --out-json .tmp/bench_summary.json --md > .tmp/bench_summary.md
+          echo "no_bench_lines=0" >> $GITHUB_OUTPUT
+      - name: Post comment to tracking issue
+        if: steps.sum.outputs.no_bench_lines == '0'
+        uses: actions/github-script@v7
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const run = context.payload.workflow_run;
+            const issue_number = 4; // Tracking: v0.5.0 Performance Mid
+            const md = require('fs').readFileSync('.tmp/bench_summary.md','utf8');
+            const note = run.name.includes('Quick') ? '\n\nNote: Quick mode (timeout=300ms, dns-timeout=1000ms, dns-retries=1, qps=300).' : '';
+            const body = `Bench completed: ${run.name} (run id: ${run.id})\n\n${md}${note}`;
+            await github.rest.issues.createComment({ owner: context.repo.owner, repo: context.repo.repo, issue_number, body });

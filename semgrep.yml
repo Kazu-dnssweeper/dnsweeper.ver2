@@ -1,0 +1,11 @@
+rules:
+  - id: dnsweeper-node-redos
+    patterns:
+      - pattern: new RegExp($PATTERN)
+      - metavariable-pattern:
+          metavariable: $PATTERN
+          pattern: /(.+\+){2,}/
+    message: "Potential ReDoS in dynamic RegExp"
+    severity: ERROR
+    languages: [javascript, typescript]
+

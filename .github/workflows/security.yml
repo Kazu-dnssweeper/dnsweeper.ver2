@@ -1,0 +1,280 @@
+name: security
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  schedule:
+    - cron: "0 3 * * 1" # every Monday 03:00 UTC
+
+# Minimal permissions by default; specific jobs escalate if needed
+permissions:
+  contents: read
+  security-events: write
+
+jobs:
+  deps-and-osv:
+    name: Dependencies (npm audit + OSV)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        # TODO: Pin to a commit SHA for supply-chain hardening
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Install (no scripts)
+        run: |
+          npm ci --ignore-scripts || npm i --ignore-scripts
+      - name: npm audit (fail on high)
+        run: npm audit --audit-level=high
+      - name: npm audit (json summary)
+        run: |
+          npm audit --json > npm-audit.json || true
+        continue-on-error: true
+      - name: Install OSV-Scanner
+        run: |
+          curl -sSfL https://raw.githubusercontent.com/google/osv-scanner/main/install.sh | sh -s -- -b .
+      - name: OSV scan (SARIF)
+        run: ./osv-scanner -r . --format sarif > osv.sarif || true
+      - name: Upload SARIF (OSV)
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: osv.sarif
+      - name: Save audit summary artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: deps-osv-reports
+          path: |
+            npm-audit.json
+            osv.sarif
+          if-no-files-found: ignore
+
+  sast-semgrep:
+    name: SAST (Semgrep)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.x'
+      - name: Install semgrep
+        run: python -m pip install --upgrade pip semgrep
+      - name: Run semgrep (fail on high only)
+        run: |
+          semgrep --version
+          # Packs: OWASP Top 10, JavaScript/TypeScript, nodejsscan, security-audit + custom rules
+          semgrep \
+            --config p/owasp-top-ten \
+            --config p/javascript \
+            --config p/typescript \
+            --config p/nodejsscan \
+            --config p/security-audit \
+            --config ./.semgrep.yml \
+            --severity ERROR \
+            --sarif -o semgrep.sarif \
+            --error
+      - name: Upload SARIF (Semgrep)
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: semgrep.sarif
+
+  secrets-gitleaks:
+    name: Secrets (Gitleaks)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout (full history)
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Run gitleaks
+        uses: gitleaks/gitleaks-action@v2
+        with:
+          args: detect --source . --redact --report-format sarif --report-path gitleaks.sarif --config-path ./.gitleaks.toml
+      - name: Upload SARIF (Gitleaks)
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: gitleaks.sarif
+
+  container-trivy:
+    name: Container FS (Trivy)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Trivy FS scan (fail on HIGH/CRITICAL)
+        uses: aquasecurity/trivy-action@0.24.0
+        with:
+          scan-type: fs
+          ignore-unfixed: true
+          format: sarif
+          output: trivy.sarif
+          severity: HIGH,CRITICAL
+          exit-code: '1'
+      - name: Upload SARIF (Trivy)
+        if: always()
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: trivy.sarif
+
+  dockerfile-hadolint:
+    name: Dockerfile (Hadolint)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Lint Dockerfile
+        if: ${{ hashFiles('Dockerfile') != '' }}
+        uses: hadolint/hadolint-action@v3.1.0
+        with:
+          dockerfile: Dockerfile
+          failure-threshold: error
+
+  image-trivy:
+    name: Container Image (Trivy)
+    runs-on: ubuntu-latest
+    if: ${{ hashFiles('Dockerfile') != '' }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+      - name: Build image (local)
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: ./Dockerfile
+          push: false
+          load: true
+          tags: dnsweeper:ci
+      - name: Trivy image scan (fail on HIGH/CRITICAL)
+        uses: aquasecurity/trivy-action@0.24.0
+        with:
+          image-ref: dnsweeper:ci
+          format: sarif
+          output: trivy-image.sarif
+          severity: HIGH,CRITICAL
+          ignore-unfixed: true
+          exit-code: '1'
+      - name: Upload SARIF (Trivy image)
+        if: always()
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: trivy-image.sarif
+
+  sbom-and-audit:
+    name: SBOM & Audit
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Generate SBOM (Syft)
+        uses: anchore/sbom-action@v0
+        with:
+          output-format: json
+          output-file: artifacts/sbom.json
+      - name: Tool versions & commands audit
+        run: |
+          mkdir -p artifacts
+          {
+            echo "date=$(date -u +%Y-%m-%dT%H:%M:%SZ)";
+            echo "git_rev=$(git rev-parse HEAD || true)";
+            echo "node=$(node -v || true)";
+            echo "npm=$(npm -v || true)";
+          } >> artifacts/audit.log
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: sbom-and-audit
+          path: artifacts
+
+  report-and-enforce:
+    name: Report & Enforce Policy
+    needs:
+      - deps-and-osv
+      - sast-semgrep
+      - secrets-gitleaks
+      - container-trivy
+      - dockerfile-hadolint
+      - image-trivy
+      - sbom-and-audit
+    runs-on: ubuntu-latest
+    if: always()
+    permissions:
+      contents: read
+      issues: write
+      pull-requests: write
+    steps:
+      - name: Actions pinning lint
+        run: |
+          node scripts/ci/actions-pin-lint.js || true
+      - name: Download deps/osv reports
+        uses: actions/download-artifact@v4
+        with:
+          name: deps-osv-reports
+          path: deps-osv-reports
+      - name: Setup Node for summary script
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Summarize results
+        id: sum
+        run: |
+          echo "deps=${{ needs.deps-and-osv.result }}" >> $GITHUB_OUTPUT
+          echo "sast=${{ needs.sast-semgrep.result }}" >> $GITHUB_OUTPUT
+          echo "secrets=${{ needs.secrets-gitleaks.result }}" >> $GITHUB_OUTPUT
+          echo "trivy=${{ needs.container-trivy.result }}" >> $GITHUB_OUTPUT
+          echo "hadolint=${{ needs.dockerfile-hadolint.result }}" >> $GITHUB_OUTPUT
+          echo "sbom=${{ needs.sbom-and-audit.result }}" >> $GITHUB_OUTPUT
+      - name: Generate npm audit summary
+        id: npm_summary
+        run: |
+          node scripts/ci/npm-audit-summary.js deps-osv-reports/npm-audit.json > npm-audit-summary.md || echo "No summary" > npm-audit-summary.md
+          echo "path=$(pwd)/npm-audit-summary.md" >> $GITHUB_OUTPUT
+      - name: Create/Update baseline issue
+        if: ${{ contains(join(needs.*.result, ','), 'failure') }}
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const title = 'Security Baseline Report';
+            const body = `One or more security checks failed.\n\n` +
+              `Results:\n`+
+              `- deps-and-osv: ${process.env.DEP}\n`+
+              `- sast-semgrep: ${process.env.SAST}\n`+
+              `- secrets-gitleaks: ${process.env.SEC}\n`+
+              `- container-trivy: ${process.env.TRI}\n`+
+              `- dockerfile-hadolint: ${process.env.HAD}\n`+
+              `- sbom-and-audit: ${process.env.SBOM}\n`;
+            const { data: issues } = await github.rest.issues.listForRepo({ owner: context.repo.owner, repo: context.repo.repo, state: 'open', labels: 'security,needs-fix' });
+            let issue = issues.find(i => i.title === title);
+            if (!issue) {
+              issue = (await github.rest.issues.create({ owner: context.repo.owner, repo: context.repo.repo, title, body, labels: ['security','needs-fix'] })).data;
+            } else {
+              await github.rest.issues.update({ owner: context.repo.owner, repo: context.repo.repo, issue_number: issue.number, body });
+            }
+          env:
+            DEP: ${{ steps.sum.outputs.deps }}
+            SAST: ${{ steps.sum.outputs.sast }}
+            SEC: ${{ steps.sum.outputs.secrets }}
+            TRI: ${{ steps.sum.outputs.trivy }}
+            HAD: ${{ steps.sum.outputs.hadolint }}
+            SBOM: ${{ steps.sum.outputs.sbom }}
+      - name: Comment on PR with deps summary
+        if: ${{ github.event_name == 'pull_request' }}
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const body = fs.readFileSync(process.env.SUMMARY_PATH, 'utf8');
+            await github.rest.issues.createComment({ owner: context.repo.owner, repo: context.repo.repo, issue_number: context.issue.number, body });
+          env:
+            SUMMARY_PATH: ${{ steps.npm_summary.outputs.path }}
+      - name: Enforce failure on any HIGH findings
+        run: |
+          if echo "${{ join(needs.*.result, ' ') }}" | grep -q failure; then
+            echo 'High severity findings detected. Failing.'
+            exit 1
+          fi
