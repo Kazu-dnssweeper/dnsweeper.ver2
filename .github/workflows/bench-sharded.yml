@@ -1,0 +1,70 @@
+name: Bench (Sharded 100k Quick)
+
+on:
+  workflow_dispatch:
+
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [0,1,2,3,4,5,6,7,8,9]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: PNPM version
+        run: pnpm -v
+      - name: Install deps
+        run: pnpm install --no-frozen-lockfile
+      - name: Build
+        run: pnpm -C packages/dnsweeper run build
+      - name: Bench Quick shard ${{ matrix.shard }} (10k x1)
+        run: |
+          set -e
+          mkdir -p .tmp
+          echo "Run shard=${{ matrix.shard }} size=10000 (quick NX-skip)";
+          # Quick settings: timeout/dns-timeout/dns-retries/qps tuned per shard
+          timeout 20m node scripts/bench/bench.js \
+            --size 10000 \
+            --preset examples/presets/low-latency.json \
+            --http --doh \
+            --timeout 250 --dns-timeout 900 --dns-retries 1 --qps 30 \
+            2>&1 | tee -a .tmp/bench_low-latency_10000.shard-${{ matrix.shard }}.quick.log
+      - name: Upload shard log
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: bench-logs-low-latency-10000-shard-${{ matrix.shard }}-quick
+          path: .tmp/bench_low-latency_10000.shard-${{ matrix.shard }}.quick.log
+
+  aggregate:
+    runs-on: ubuntu-latest
+    needs: run
+    steps:
+      - uses: actions/checkout@v4
+      - name: Download all shard logs
+        uses: actions/download-artifact@v4
+        with:
+          path: .tmp/shards
+      - name: Concatenate and summarize
+        run: |
+          set -e
+          find .tmp/shards -type f -name "*.log" -print0 | xargs -0 cat > .tmp/bench_sharded.quick.log || true
+          node scripts/bench/summarize.js --log .tmp/bench_sharded.quick.log --out-json .tmp/bench_sharded.quick.summary.json --md || true
+          if [ -s .tmp/bench_sharded.quick.summary.json ]; then cat .tmp/bench_sharded.quick.summary.json; fi
+      - name: Upload summary
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: bench-sharded-quick-summary
+          path: |
+            .tmp/bench_sharded.quick.log
+            .tmp/bench_sharded.quick.summary.json
+      - name: Append to job summary
+        run: |
+          if [ -f .tmp/bench_sharded.quick.log ]; then node scripts/bench/summarize.js --log .tmp/bench_sharded.quick.log --md >> "$GITHUB_STEP_SUMMARY" || true; fi
+
