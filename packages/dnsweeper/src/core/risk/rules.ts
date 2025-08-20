@@ -1,13 +1,13 @@
 import { WEIGHTS } from './weights.js';
-import { getRiskThresholds } from './config.js';
 import type { RiskEvidence, RiskContext } from './types.js';
+import type { RiskThresholds } from './config.js';
 
-export type RuleFn = (ctx: RiskContext) => { delta: number; evidence?: RiskEvidence } | null;
+export type RuleFn = (ctx: RiskContext, th: RiskThresholds) => { delta: number; evidence?: RiskEvidence } | null;
 
 const reSuspicious = /(old|tmp|backup|bk|stg|dev)/i;
 
 export const RULES: Record<string, RuleFn> = {
-  'R-001': (ctx) => {
+  'R-001': (ctx, _th) => {
     const status = (ctx.dns?.status || '').toUpperCase();
     const attempts = ctx.dns?.attempts || 0;
     if (status === 'NXDOMAIN' && attempts >= 3) {
@@ -18,14 +18,14 @@ export const RULES: Record<string, RuleFn> = {
     }
     return null;
   },
-  'R-002': (ctx) => {
+  'R-002': (ctx, _th) => {
     const status = (ctx.dns?.status || '').toUpperCase();
     if (status === 'SERVFAIL' || status === 'TIMEOUT') {
       return { delta: WEIGHTS['R-002'], evidence: { ruleId: 'R-002', message: `DNS ${status}`, severity: 'medium' } };
     }
     return null;
   },
-  'R-003': (ctx) => {
+  'R-003': (ctx, _th) => {
     if (ctx.name && reSuspicious.test(ctx.name)) {
       return { delta: WEIGHTS['R-003'], evidence: { ruleId: 'R-003', message: 'suspicious keywords in name', severity: 'medium' } };
     }
@@ -36,8 +36,7 @@ export const RULES: Record<string, RuleFn> = {
   // - SERVFAIL/TIMEOUT with repeated attempts (>=2)
   // - NXDOMAIN with attempts in [1,2] (below R-001 threshold)
   // - TTL anomaly: min TTL <= 30s across chain
-  'R-004': (ctx) => {
-    const th = getRiskThresholds();
+  'R-004': (ctx, th) => {
     const reasons: string[] = [];
     const status = (ctx.dns?.status || '').toUpperCase();
     const attempts = ctx.dns?.attempts ?? 0;
@@ -50,7 +49,7 @@ export const RULES: Record<string, RuleFn> = {
     const evidence: RiskEvidence = { ruleId: 'R-004', message: 'dns high-risk hint', severity: 'medium', meta: { reasons } };
     return { delta: WEIGHTS['R-004'], evidence };
   },
-  'R-005': (ctx) => {
+  'R-005': (ctx, _th) => {
     const ran = typeof ctx.http?.httpsOk === 'boolean' || typeof ctx.http?.httpOk === 'boolean';
     if (!ran) return null;
     if (!ctx.http?.httpsOk && !ctx.http?.httpOk) {
@@ -58,14 +57,14 @@ export const RULES: Record<string, RuleFn> = {
     }
     return null;
   },
-  'R-006': (ctx) => {
+  'R-006': (ctx, _th) => {
     const st = ctx.http?.statuses || [];
     if (st.some((s) => s >= 500)) {
       return { delta: WEIGHTS['R-006'], evidence: { ruleId: 'R-006', message: 'HTTP 5xx observed', severity: 'medium' } };
     }
     return null;
   },
-  'R-007': (ctx) => {
+  'R-007': (ctx, _th) => {
     const st = ctx.http?.statuses || [];
     if (st.includes(404)) {
       return { delta: WEIGHTS['R-007'], evidence: { ruleId: 'R-007', message: 'HTTP 404 observed', severity: 'low' } };
@@ -73,7 +72,7 @@ export const RULES: Record<string, RuleFn> = {
     return null;
   },
   // CNAME chain without terminal A/AAAA
-  'R-008': (ctx) => {
+  'R-008': (ctx, _th) => {
     const chain = Array.isArray(ctx.dns?.chain) ? ctx.dns?.chain || [] : [];
     if (chain.length === 0) return null;
     const hasCname = chain.some((h) => String(h.type).toUpperCase() === 'CNAME');
@@ -87,7 +86,7 @@ export const RULES: Record<string, RuleFn> = {
     return null;
   },
   // TXT hints: weak SPF (~all or ?all)
-  'R-009': (ctx) => {
+  'R-009': (ctx, _th) => {
     const chain = Array.isArray(ctx.dns?.chain) ? ctx.dns?.chain || [] : [];
     if (chain.length === 0) return null;
     const txts = chain.filter((h) => String(h.type).toUpperCase() === 'TXT').map((h) => String(h.data || ''));
@@ -97,7 +96,7 @@ export const RULES: Record<string, RuleFn> = {
     }
     return null;
   },
-  'R-010': (ctx) => {
+  'R-010': (ctx, _th) => {
     if (ctx.proxied === true) {
       return { delta: WEIGHTS['R-010'], evidence: { ruleId: 'R-010', message: 'cloudflare proxied', severity: 'low' } };
     }

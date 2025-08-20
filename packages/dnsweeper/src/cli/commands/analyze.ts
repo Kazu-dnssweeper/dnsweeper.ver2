@@ -12,7 +12,7 @@ import { JobRunner } from '../../core/jobs/runner.js';
 import { appendAudit, sha256File, getRulesetVersion } from '../../core/audit/audit.js';
 import { probeUrl } from '../../core/http/probe.js';
 import { evaluateRisk } from '../../core/risk/engine.js';
-import { loadConfig } from '../../core/config/schema.js';
+import { ConfigService } from '../../core/config/service.js';
 
 type AnalyzeOptions = {
   httpCheck?: boolean;
@@ -97,12 +97,11 @@ export function registerAnalyzeCommand(program: Command) {
     .description('Analyze CSV and print data row count (header excluded)')
     .action(async (input: string, options: AnalyzeOptions) => {
       try {
-        // Warm config for risk thresholds/overrides
-        try { const { warmConfig } = await import('../../core/risk/config.js'); await warmConfig(); } catch {}
+        const cfgSvc = new ConfigService();
+        const cfg = await cfgSvc.load();
+        const az = cfg?.analyze || {};
         // Apply analyze defaults from config (CLI args > config > built-in)
         try {
-          const cfg = await loadConfig();
-          const az = cfg?.analyze || {};
           if (typeof az.qps === 'number' && (options.qps ?? 0) === 0) options.qps = az.qps;
           if (typeof az.concurrency === 'number' && (options.concurrency ?? 5) === 5) options.concurrency = az.concurrency;
           if (typeof az.timeoutMs === 'number' && (options.timeout ?? 5000) === 5000) options.timeout = az.timeoutMs;
@@ -158,11 +157,7 @@ export function registerAnalyzeCommand(program: Command) {
         }> = [];
         // Apply progress interval from config if provided
         let progressIntervalMs: number | undefined;
-        try {
-          const cfg = await loadConfig();
-          const az = cfg?.analyze || {};
-          if (typeof az?.progressIntervalMs === 'number') progressIntervalMs = az.progressIntervalMs;
-        } catch {}
+        if (typeof az?.progressIntervalMs === 'number') progressIntervalMs = az.progressIntervalMs;
         const runner = new JobRunner(domains.length, { quiet: options.quiet, intervalMs: progressIntervalMs });
 
         // Resume support
@@ -209,11 +204,7 @@ export function registerAnalyzeCommand(program: Command) {
           const qps = Math.max(0, options.qps ?? 0);
           // Simple bursty rate-limit: allow up to burst within a 1s window, then pace by qps
           let burst = 0;
-          try {
-            const cfg = await loadConfig();
-            const az = cfg?.analyze || {};
-            if (typeof az?.qpsBurst === 'number') burst = Math.max(0, az.qpsBurst);
-          } catch {}
+          if (typeof az?.qpsBurst === 'number') burst = Math.max(0, az.qpsBurst);
           let usedInWindow = 0;
           let windowStart = Date.now();
           let nextAt = Date.now();
@@ -388,7 +379,7 @@ export function registerAnalyzeCommand(program: Command) {
                       ].filter((x) => typeof x === 'number') as number[],
                     },
                   };
-                  const ev = evaluateRisk(ctx as any);
+                  const ev = evaluateRisk(ctx as any, cfgSvc);
                   evCombined = ev as any;
                   const rank = (x: string) => (x === 'low' ? 0 : x === 'medium' ? 1 : 2);
                   // Do not downgrade below heuristic; pick the higher risk level

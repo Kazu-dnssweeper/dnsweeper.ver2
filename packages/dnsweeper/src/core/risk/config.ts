@@ -1,4 +1,4 @@
-import { loadConfig } from '../config/schema.js';
+import type { ConfigService } from '../config/service.js';
 
 export type RiskThresholds = {
   lowTtlSec: number; // R-004: TTL anomaly threshold
@@ -7,35 +7,27 @@ export type RiskThresholds = {
   nxdomainSubMax: number; // R-004: NXDOMAIN subthreshold max attempts (inclusive, below R-001)
 };
 
-let cached: RiskThresholds | null = null;
+const cache = new WeakMap<ConfigService, RiskThresholds>();
 
-export function getRiskThresholds(): RiskThresholds {
-  if (cached) return cached;
-  // Note: loadConfig is async, but here we use best-effort sync cache via env passthrough
-  // Callers can warm config separately; fallback to defaults when not available.
-  const risk = (globalThis as any).__DNSWEEPER_CFG__?.risk || {};
+export function getRiskThresholds(cfg: ConfigService): RiskThresholds {
+  const hit = cache.get(cfg);
+  if (hit) return hit;
+  const risk = cfg.get()?.risk || {};
   const n = (v: any, d: number) => (typeof v === 'number' && isFinite(v) ? v : d);
-  cached = {
+  const th: RiskThresholds = {
     lowTtlSec: n(risk.lowTtlSec, 30),
     servfailMinAttempts: Math.max(0, n(risk.servfailMinAttempts, 2)),
     nxdomainSubMin: Math.max(0, n(risk.nxdomainSubMin, 1)),
     nxdomainSubMax: Math.max(0, n(risk.nxdomainSubMax, 2)),
   };
-  return cached;
+  cache.set(cfg, th);
+  return th;
 }
 
-export async function warmConfig() {
-  try {
-    const cfg = await loadConfig();
-    (globalThis as any).__DNSWEEPER_CFG__ = cfg;
-  } catch {
-    // ignore
-  }
-}
-
-export function getRuleOverrides(): { weights: Record<string, number>; disabled: string[] } {
-  const cfg = (globalThis as any).__DNSWEEPER_CFG__ || {};
-  const rw = cfg?.risk?.rules?.weights || {};
-  const dis = cfg?.risk?.rules?.disabled || [];
+export function getRuleOverrides(cfg: ConfigService): { weights: Record<string, number>; disabled: string[] } {
+  const c = cfg.get() || {};
+  const rw = c?.risk?.rules?.weights || {};
+  const dis = c?.risk?.rules?.disabled || [];
   return { weights: rw, disabled: dis };
 }
+
