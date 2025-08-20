@@ -1,4 +1,4 @@
-﻿import { Command } from 'commander';
+import { Command } from 'commander';
 import fs from 'node:fs';
 import Table from 'cli-table3';
 
