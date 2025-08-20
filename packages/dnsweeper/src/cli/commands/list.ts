@@ -44,7 +44,7 @@ export function registerListCommand(program: Command) {
       // sorting
       const key = String(opts.sort || 'risk');
       records = records.sort((a, b) => {
-        if (key === 'risk') return riskToRank((b as any).risk) - riskToRank((a as any).risk);
+        if (key === 'risk') return riskToRank((a as any).risk) - riskToRank((b as any).risk);
         const da = String((a as any).domain || '');
         const db = String((b as any).domain || '');
         return da.localeCompare(db);
