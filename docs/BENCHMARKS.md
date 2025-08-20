@@ -73,12 +73,14 @@ node scripts/bench/bench.js --size 100000 --preset examples/presets/low-latency.
 ```
 
 ## 最新結果（中央値）
-- 測定条件: GitHub Actions Ubuntu, Node 20, DoH+HTTP, timeout=800ms, 各プリセット×3回の全体中央値
-- 100行: 約 6.1 秒（rps ≈ 16.4）
-- 10,000行: 約 410.0 秒（6.8 分, rps ≈ 24.4）
-- 100,000行: 別Runで取得予定（完了後に追記）
+- 自動集計: main ブランチの “Bench (M7 100k x3 matrix)” が各Runの summary.json を集約し、Step Summary に以下を出力します。
+  - `values: rps1, rps2, rps3`
+  - `median_rps: <number>`
+  - `target_rps (100k<=15m): ~111.11 → PASS/FAIL`
+- 判定基準: 100,000 行を 15 分以内（中央値RPS ≈ 111 以上）。
+- 最新の中央値・判定は、当該ワークフローRunの Step Summary を参照してください（Artifacts を開かなくても確認可能）。
 
-補足: 上記はダミー `example.com` ドメイン生成＋NXDOMAIN多数の条件。実データやネット状況により差異があります。
+補足: ダミー `example.com` 生成＋NXDOMAIN多数の条件では、環境・ネット状況でrpsが変動します。プリセット（low/high latency）を用いて安定化してください。
 
 ## ヒント
 - ボトルネック切り分け: `--http`/`--doh` を個別にオンにして影響を分離

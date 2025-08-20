@@ -39,6 +39,10 @@ npm start -- export analyzed.json --format csv  --output out.csv
 npm start -- export analyzed.json --format xlsx --output out.xlsx
 ```
 
+## ベンチマーク / 性能指標（自動集計）
+- main の CI “Bench (M7 100k x3 matrix)” が 100k×3 を実行し、Step Summary に `values`（rps配列）/`median_rps`/`PASS/FAIL` を自動出力します。
+- 判定: 100k ≤ 15分（中央値RPS ≈ 111+）を目標。詳細は `docs/BENCHMARKS.md`。
+
 ## 入力フォーマット（最低限）
 - CSV/JSONを受け付けます。CSVは `domain` を含むシンプルな表でOK（詳細は Import 例や tests/fixtures を参照）。
 ```sh
