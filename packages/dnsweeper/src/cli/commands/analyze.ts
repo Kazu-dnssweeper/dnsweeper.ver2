@@ -421,7 +421,9 @@ export function registerAnalyzeCommand(program: Command) {
                   if (!options.doh || (dnsResult && dnsResult.status === 'NOERROR')) risk = 'low';
                 }
                 // Apply ruleset if provided
-                const rs = options.ruleset ? loadRuleset(options.rulesetDir || '.tmp/rulesets', options.ruleset) : null;
+                const rs = options.ruleset
+                  ? await loadRuleset(options.rulesetDir || '.tmp/rulesets', options.ruleset)
+                  : null;
                 const adjusted = rs ? applyRules(domain, risk, { ruleset: rs, dns: dnsResult }) : risk;
                 // no-downgrade: do not lower risk below base
                 if (options.noDowngrade) {
