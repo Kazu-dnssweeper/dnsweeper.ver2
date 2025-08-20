@@ -13,6 +13,9 @@
 - 外部コマンド: 原則禁止。必要時はホワイトリスト・絶対パスで呼び出し、引数はエスケープ（シェル展開不可）。
 - ファイル出力: `path.resolve` で安全なベースディレクトリ配下に限定し、親ディレクトリ遡り（..）を拒否。
 - JSONLログ: 改行/制御文字エスケープ、1行上限（例: 32KB）とローテーションを実施。
+  - バッファリング（任意）: `dnsweeper.config.json` の `audit.buffer` で有効化。
+    例: `{ "audit": { "buffer": { "enabled": true, "maxEntries": 200, "flushIntervalMs": 2000 } } }`
+    プロセス終了時/シグナル時に自動フラッシュ。
 - HTTPプローブ: リダイレクト回数上限（例:5）、本文ダウンロード抑止（HEAD→必要時GET）、ヘッダ/本文サイズ上限、タイムアウト厳守。
 - DoHキャッシュ: キー正規化（`<name>|<type>`）、TTL尊重、壊れたエントリの隔離/無効化。
 - スナップショット/計画: 入力ハッシュ付与、ルールセット版数を記録、人手レビュー前提で利用。
@@ -24,7 +27,11 @@
 - ジョブスナップショット: 入力+ルールセット一致時のみ再開、差異時は強警告。
 - 監査ログ: HOME不可時は `.tmp/audit.log` にフォールバックし、後続で集約。
 
+## 重み最適化支援（実データ）
+- `scripts/analysis/weights-suggest.js analyzed.json --top 8 --out weights.patch.json`
+  - `analyzed.json`（`--include-evidence` 推奨）から evidence/失敗分布を集計し、`risk.rules.weights` の増減案を出力。
+  - 出力パッチを `dnsweeper.config.json` にマージして効果を検証してください。
+
 ## sweep apply の扱い
 - GAまで封印し、`plan` 生成のみに限定。
 - 実適用が必要な場合でも、別ツール/別権限で二段階承認フローを要求（レビュー→実行）。
-

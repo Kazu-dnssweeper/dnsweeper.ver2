@@ -34,8 +34,13 @@ jobs:
             2>&1 | tee .tmp/bench_m7_100k_run${{ matrix.run }}.log
       - name: Summarize
         run: |
-          node scripts/bench/summarize.js --log .tmp/bench_m7_100k_run${{ matrix.run }}.log --out-json .tmp/bench_m7_100k_run${{ matrix.run }}.summary.json --md > .tmp/bench_m7_100k_run${{ matrix.run }}.summary.md || true
-          cat .tmp/bench_m7_100k_run${{ matrix.run }}.summary.md >> "$GITHUB_STEP_SUMMARY" || true
+          # Prefer bench-generated summary JSON if present
+          if [ -f .tmp/bench/bench-100000.summary.json ]; then
+            cp .tmp/bench/bench-100000.summary.json .tmp/bench_m7_100k_run${{ matrix.run }}.summary.json
+            jq -r '"- size=\(.size): rps=\(.rps), elapsed_ms=\(.elapsed_ms)"' .tmp/bench_m7_100k_run${{ matrix.run }}.summary.json >> "$GITHUB_STEP_SUMMARY" || true
+          else
+            node scripts/bench/summarize.js --log .tmp/bench_m7_100k_run${{ matrix.run }}.log --out-json .tmp/bench_m7_100k_run${{ matrix.run }}.summary.json --md >> "$GITHUB_STEP_SUMMARY" || true
+          fi
       - name: Upload logs and summary
         if: always()
         uses: actions/upload-artifact@v4

@@ -68,7 +68,11 @@ function main() {
 
   let count = 0; try { count = JSON.parse(fs.readFileSync(outJson, 'utf8')).length; } catch{}
   const rps = count > 0 ? (count / (elapsed / 1000)) : 0;
-  console.error(`[bench] size=${size} elapsed_ms=${elapsed} rps=${rps.toFixed(1)} output=${outJson}`);
+  // Write a dedicated summary JSON for robust collection by CI
+  const benchSummaryPath = path.join(outDir, `bench-${size}.summary.json`);
+  const benchSummary = { size, elapsed_ms: elapsed, rps: Number(rps.toFixed(2)), output: outJson };
+  fs.writeFileSync(benchSummaryPath, JSON.stringify(benchSummary, null, 2));
+  console.error(`[bench] size=${size} elapsed_ms=${elapsed} rps=${rps.toFixed(1)} output=${outJson} summary=${benchSummaryPath}`);
 }
 
 main();
