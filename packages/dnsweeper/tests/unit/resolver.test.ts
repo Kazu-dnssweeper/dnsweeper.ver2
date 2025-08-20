@@ -1,6 +1,6 @@
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { resolveDoh, setFetch, ResolveResult } from '../../src/core/resolver/doh.js';
-import { clearCache } from '../../src/core/resolver/cache.js';
+import { clearCache, getCached, putCached } from '../../src/core/resolver/cache.js';
 
 type FetchLike = (input: any, init?: any) => Promise<{ status: number; json: () => Promise<any> }>;
 
@@ -79,5 +79,32 @@ describe('resolveDoh', () => {
     const r: ResolveResult = await resolveDoh('slow.example.', 'A', { timeoutMs: 10, retries: 0 });
     expect(r.status).toBe('TIMEOUT');
     setFetch(null);
+  });
+
+  it('returns SERVFAIL on HTTP 5xx', async () => {
+    const fakeFetch: FetchLike = async () => makeResponse({}, 503);
+    setFetch(fakeFetch as any);
+    const r = await resolveDoh('broke.example.', 'A', { retries: 0 });
+    expect(r.status).toBe('SERVFAIL');
+    setFetch(null);
+  });
+});
+
+describe('resolver cache', () => {
+  beforeEach(() => {
+    clearCache();
+    vi.useFakeTimers();
+    vi.setSystemTime(0);
+  });
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it('expires entries after TTL', () => {
+    const result: ResolveResult = { qname: 'a', qtype: 'A', status: 'NOERROR', chain: [], elapsedMs: 1 };
+    putCached('a', 'A', result, 1);
+    expect(getCached('a', 'A')).toEqual(result);
+    vi.advanceTimersByTime(1500);
+    expect(getCached('a', 'A')).toBeNull();
   });
 });
