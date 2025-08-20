@@ -9,7 +9,7 @@
     "test:unit": "VITEST_SCOPE=unit vitest run",
     "test:net": "VITEST_SCOPE=net vitest run",
     "test:large": "LARGE_E2E=1 vitest run tests/e2e/large-format.test.ts",
-    "build": "tsup src/cli/index.ts --format esm --dts --sourcemap --clean --out-dir dist/cli",
+    "build": "tsup src/cli/index.ts --format esm --dts --sourcemap --out-dir dist/cli",
     "dev": "tsx src/cli/index.ts",
     "lint": "eslint .",
     "format": "prettier -c .",

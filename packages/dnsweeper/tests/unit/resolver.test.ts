@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, vi } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { resolveDoh, setFetch, ResolveResult } from '../../src/core/resolver/doh.js';
 import { clearCache, getCached, putCached } from '../../src/core/resolver/cache.js';
 

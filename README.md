@@ -1,3 +1,7 @@
+DNSweeper CLI
+- Persistent DoH cache: opt-in via config cache.dohPersist.enabled
+- Telemetry: opt-in via config telemetry.enabled (defaults off); endpoint optional
+- Jobs helpers: `dnsweeper jobs status|aggregate|cancel` for snapshot/status/cancel
 # DNSweeper
 
 [English](README.en.md) | 日本語
