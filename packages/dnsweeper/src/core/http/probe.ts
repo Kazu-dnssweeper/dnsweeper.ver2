@@ -11,10 +11,11 @@ function classifyError(e: unknown): ProbeResult['errorType'] {
   return 'unknown';
 }
 
-async function getTlsInfo(hostname: string): Promise<TlsInfo | undefined> {
+async function getTlsInfo(hostname: string, verifyTls?: boolean): Promise<TlsInfo | undefined> {
   return new Promise((resolve) => {
     try {
-      const socket = tls.connect({ host: hostname, servername: hostname, port: 443, rejectUnauthorized: false }, () => {
+      const options = { host: hostname, servername: hostname, port: 443, ...(verifyTls === false ? { rejectUnauthorized: false } : {}) };
+      const socket = tls.connect(options, () => {
         const alpn = socket.alpnProtocol || undefined;
         const cert = socket.getPeerCertificate();
         const issuer = cert && typeof cert === 'object' ? (cert.issuer && cert.issuer.O) || cert.issuer?.CN : undefined;
@@ -48,7 +49,7 @@ export async function probeUrl(url: string, opts: ProbeOptions = {}): Promise<Pr
     let tlsInfo: TlsInfo | undefined;
     try {
       const u = new URL(current);
-      if (u.protocol === 'https:') tlsInfo = await getTlsInfo(u.hostname);
+      if (u.protocol === 'https:') tlsInfo = await getTlsInfo(u.hostname, opts.verifyTls);
     } catch {}
 
     // Try HEAD first; fallback to GET on non-2xx or error

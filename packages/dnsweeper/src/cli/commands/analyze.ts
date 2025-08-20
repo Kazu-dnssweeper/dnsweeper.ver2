@@ -57,7 +57,7 @@ function pickDomain(row: Record<string, unknown>): string | null {
 }
 
 async function probeDomain(domain: string, timeoutMs: number, userAgent?: string) {
-  const https = await probeUrl(`https://${domain}/`, { timeoutMs, userAgent, maxRedirects: 5, method: 'HEAD' });
+  const https = await probeUrl(`https://${domain}/`, { timeoutMs, userAgent, maxRedirects: 5, method: 'HEAD', verifyTls: false });
   let http = { ok: false } as { ok: boolean; status?: number; redirects?: number; finalUrl?: string; elapsedMs?: number; errorType?: string };
   if (!https.ok) {
     const r = await probeUrl(`http://${domain}/`, { timeoutMs, userAgent, maxRedirects: 5, method: 'HEAD' });
@@ -342,6 +342,7 @@ export function registerAnalyzeCommand(program: Command) {
                       userAgent: options.userAgent,
                       maxRedirects: 5,
                       method: 'HEAD',
+                      verifyTls: false,
                     });
                     srvProbe = { ok: !!r.ok, status: (r as any).status, finalUrl: (r as any).finalUrl, errorType: (r as any).errorType };
                     if (srvProbe.ok) {

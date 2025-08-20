@@ -13,7 +13,7 @@ DNSweeper は、DNSレコードの健全性と HTTP/TLS の到達性を解析し
 ---
 
 ## 概要 / 機能
-- DoH解決 + HTTP/TLSプローブ（失敗分類、最小TLS情報）
+- DoH解決 + HTTP/TLSプローブ（失敗分類、最小TLS情報、TLS検証はデフォルト有効・`verifyTls:false`で無効化可能）
 - ルールベースのリスク判定（Evidence出力、重み/無効化）
 - list（表示/フィルタ/列追加）、export（JSON/CSV/XLSX）
 - sweep plan 生成（review/delete）

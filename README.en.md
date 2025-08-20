@@ -13,7 +13,7 @@ Docs: specs docs/SPEC.md · risk docs/RISK_ENGINE.md · ops docs/OPERATIONS.md �
 ---
 
 ## Overview / Features
-- DoH resolution + HTTP/TLS probing (error classification, minimal TLS info)
+- DoH resolution + HTTP/TLS probing (error classification, minimal TLS info, TLS verification enabled by default; set `verifyTls: false` to skip checks)
 - Rule‑based risk evaluation (evidence output, rule weights/disable)
 - list (filter/columns), export (JSON/CSV/XLSX)
 - Sweep plan generation (review/delete)

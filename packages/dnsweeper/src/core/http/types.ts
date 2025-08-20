@@ -3,6 +3,7 @@ export type ProbeOptions = {
   maxRedirects?: number;
   method?: 'HEAD' | 'GET';
   userAgent?: string;
+  verifyTls?: boolean;
 };
 
 export type RedirectHop = { url: string; status?: number };
