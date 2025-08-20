@@ -62,14 +62,14 @@ npm start -- ruleset weights --set R-003=10 R-005=20
 ## 設定の最小例（dnsweeper.config.json）
 ```json
 {
-  "analyze": { "qps": 200, "concurrency": 40, "timeoutMs": 3000, "dohEndpoint": "https://dns.google/resolve" },
+  "analyze": { "qps": 200, "qpsBurst": 20, "concurrency": 40, "timeoutMs": 3000, "progressIntervalMs": 1000, "dohEndpoint": "https://dns.google/resolve" },
   "risk": { "rules": { "disabled": [], "weights": { "R-003": 10 } } }
 }
 ```
 
 ## 注意（安全/制限）
 - デフォルトでプライベートIP/特殊ドメインへのHTTPプローブはスキップ（`--allow-private`で解除）
-- 負荷制御のため `qps`/`concurrency`/`timeout` を設定可能
+- 負荷制御のため `qps`/`qpsBurst`/`concurrency`/`timeout` を設定可能
 - ネットワーク状況に依存するため、計測条件（timeout/retry/qps）はdocsに明記
 
 ## リンク / サポート / ライセンス
