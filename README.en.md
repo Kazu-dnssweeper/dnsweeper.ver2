@@ -62,14 +62,14 @@ npm start -- ruleset weights --set R-003=10 R-005=20
 ## Minimal config example (dnsweeper.config.json)
 ```json
 {
-  "analyze": { "qps": 200, "concurrency": 40, "timeoutMs": 3000, "dohEndpoint": "https://dns.google/resolve" },
+  "analyze": { "qps": 200, "qpsBurst": 20, "concurrency": 40, "timeoutMs": 3000, "progressIntervalMs": 1000, "dohEndpoint": "https://dns.google/resolve" },
   "risk": { "rules": { "disabled": [], "weights": { "R-003": 10 } } }
 }
 ```
 
 ## Notes (safety / limits)
 - By default, HTTP probing to private/special targets is skipped (`--allow-private` to override)
-- Control load with `qps`/`concurrency`/`timeout`
+- Control load with `qps`/`qpsBurst`/`concurrency`/`timeout`
 - Results depend on network conditions; record your measurement settings (timeout/retry/qps) in docs
 
 ## Links / Support / License

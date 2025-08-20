@@ -23,6 +23,8 @@ export const ConfigSchema = z.object({
       qps: z.number().int().nonnegative().optional(),
       concurrency: z.number().int().positive().optional(),
       timeoutMs: z.number().int().positive().optional(),
+      progressIntervalMs: z.number().int().positive().optional(),
+      qpsBurst: z.number().int().nonnegative().optional(),
       dohEndpoint: z.string().optional(),
     })
     .optional(),
