@@ -49,7 +49,10 @@ export async function probeUrl(url: string, opts: ProbeOptions = {}): Promise<Pr
     try {
       const u = new URL(current);
       if (u.protocol === 'https:') tlsInfo = await getTlsInfo(u.hostname);
-    } catch {}
+    } catch (e) {
+      // eslint-disable-next-line no-console
+      console.error('[probe] failed to get TLS info', e);
+    }
 
     // Try HEAD first; fallback to GET on non-2xx or error
     const attempt = async (method: 'HEAD' | 'GET'): Promise<Response> => {

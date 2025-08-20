@@ -98,7 +98,10 @@ export function registerAnalyzeCommand(program: Command) {
     .action(async (input: string, options: AnalyzeOptions) => {
       try {
         // Warm config for risk thresholds/overrides
-        try { const { warmConfig } = await import('../../core/risk/config.js'); await warmConfig(); } catch {}
+        try { const { warmConfig } = await import('../../core/risk/config.js'); await warmConfig(); } catch (e) {
+          // eslint-disable-next-line no-console
+          console.error('Failed to warm risk config', e);
+        }
         // Apply analyze defaults from config (CLI args > config > built-in)
         try {
           const cfg = await loadConfig();
@@ -107,9 +110,10 @@ export function registerAnalyzeCommand(program: Command) {
           if (typeof az.concurrency === 'number' && (options.concurrency ?? 5) === 5) options.concurrency = az.concurrency;
           if (typeof az.timeoutMs === 'number' && (options.timeout ?? 5000) === 5000) options.timeout = az.timeoutMs;
           if (typeof az.dohEndpoint === 'string' && !options.dohEndpoint) options.dohEndpoint = az.dohEndpoint;
-        } catch {
-          // ignore config layering errors
-        }
+          } catch (e) {
+            // eslint-disable-next-line no-console
+            console.error('Failed to load config for defaults', e);
+          }
         const fileStream = fs.createReadStream(input, { encoding: 'utf8' });
         let rows = 0;
         const domains: string[] = [];
@@ -162,14 +166,20 @@ export function registerAnalyzeCommand(program: Command) {
           const cfg = await loadConfig();
           const az = cfg?.analyze || {};
           if (typeof az?.progressIntervalMs === 'number') progressIntervalMs = az.progressIntervalMs;
-        } catch {}
+        } catch (e) {
+          // eslint-disable-next-line no-console
+          console.error('Failed to load config for progress interval', e);
+        }
         const runner = new JobRunner(domains.length, { quiet: options.quiet, intervalMs: progressIntervalMs });
 
         // Resume support
         const processedSet = new Set<string>();
         const snapshotPath = options.snapshot || '.tmp/snapshot.json';
         let inputHash = '';
-        try { inputHash = await sha256File(input); } catch {}
+        try { inputHash = await sha256File(input); } catch (e) {
+          // eslint-disable-next-line no-console
+          console.error('Failed to hash input file', e);
+        }
         // If snapshot exists, warn on ruleset changes even when not resuming
         try {
           const rawSnap = await fs.promises.readFile(snapshotPath, 'utf8');
@@ -180,7 +190,10 @@ export function registerAnalyzeCommand(program: Command) {
             // eslint-disable-next-line no-console
             console.error('[warn] snapshot exists but ruleset meta differs (not resuming unless --resume and meta matches)');
           }
-        } catch {}
+        } catch (e) {
+          // eslint-disable-next-line no-console
+          console.error('Failed to read snapshot for ruleset warning', e);
+        }
 
         if (options.resume && snapshotPath) {
           try {
@@ -197,7 +210,10 @@ export function registerAnalyzeCommand(program: Command) {
               // eslint-disable-next-line no-console
               console.error('[warn] resume skipped: snapshot does not match current input/ruleset meta');
             }
-          } catch {}
+          } catch (e) {
+            // eslint-disable-next-line no-console
+            console.error('Failed to resume from snapshot', e);
+          }
         }
 
         if (options?.httpCheck || options?.doh) {
@@ -213,7 +229,10 @@ export function registerAnalyzeCommand(program: Command) {
             const cfg = await loadConfig();
             const az = cfg?.analyze || {};
             if (typeof az?.qpsBurst === 'number') burst = Math.max(0, az.qpsBurst);
-          } catch {}
+          } catch (e) {
+            // eslint-disable-next-line no-console
+            console.error('Failed to load config for qps burst', e);
+          }
           let usedInWindow = 0;
           let windowStart = Date.now();
           let nextAt = Date.now();
@@ -437,13 +456,25 @@ export function registerAnalyzeCommand(program: Command) {
                     await fsMod.mkdir(dir, { recursive: true });
                     const r1 = `${snapshotPath}.1`;
                     const r2 = `${snapshotPath}.2`;
-                    try { await fsMod.unlink(r2); } catch {}
-                    try { await fsMod.rename(r1, r2); } catch {}
-                    try { await fsMod.rename(snapshotPath, r1); } catch {}
+                    try { await fsMod.unlink(r2); } catch (e) {
+                      // eslint-disable-next-line no-console
+                      console.error('Failed to remove snapshot rotation file', e);
+                    }
+                    try { await fsMod.rename(r1, r2); } catch (e) {
+                      // eslint-disable-next-line no-console
+                      console.error('Failed to rotate snapshot file', e);
+                    }
+                    try { await fsMod.rename(snapshotPath, r1); } catch (e) {
+                      // eslint-disable-next-line no-console
+                      console.error('Failed to rotate snapshot file to .1', e);
+                    }
                     const snap = { meta: { inputHash, execId, ts: new Date().toISOString(), ruleset: rsMeta, total: domains.length, processed: results.filter(Boolean).length }, results: results.filter(Boolean) };
                     await fsMod.writeFile(snapshotPath, JSON.stringify(snap), 'utf8');
                   }
-                } catch {}
+                  } catch (e) {
+                    // eslint-disable-next-line no-console
+                    console.error('Failed to write snapshot', e);
+                  }
                 // Stale detection v1
                 try {
                   const { detectStale } = await import('../../core/sweep/detector.js');

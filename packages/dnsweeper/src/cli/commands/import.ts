@@ -82,7 +82,10 @@ export function registerImportCommand(program: Command) {
             // eslint-disable-next-line no-console
             console.warn(`[warn] unknown headers ignored: ${uniq.join(', ')}`);
           }
-        } catch {}
+        } catch (e) {
+          // eslint-disable-next-line no-console
+          console.error('Failed to check unknown headers', e);
+        }
 
         const out: CsvRecord[] = [];
         const errors: RowError[] = [];
