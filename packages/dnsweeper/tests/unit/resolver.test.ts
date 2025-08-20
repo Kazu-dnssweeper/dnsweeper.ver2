@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { resolveDoh, setFetch, ResolveResult } from '../../src/core/resolver/doh.js';
-import { clearCache } from '../../src/core/resolver/cache.js';
+import { clearCache, configureCache } from '../../src/core/resolver/cache.js';
 
 type FetchLike = (input: any, init?: any) => Promise<{ status: number; json: () => Promise<any> }>;
 
@@ -10,6 +10,7 @@ function makeResponse(json: any, status = 200) {
 
 describe('resolveDoh', () => {
   beforeEach(() => {
+    configureCache();
     clearCache();
   });
 
