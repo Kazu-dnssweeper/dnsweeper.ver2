@@ -43,7 +43,12 @@ export function registerExportCommand(program: Command) {
         if (opts.verbose) {
           const elapsed = Date.now() - t0;
           let size = 0;
-          try { size = (await fs.promises.stat(opts.output)).size; } catch {}
+          try {
+            size = (await fs.promises.stat(opts.output)).size;
+          } catch (e) {
+            // eslint-disable-next-line no-console
+            console.error('Failed to stat output file', e);
+          }
           const mem = process.memoryUsage?.().rss ?? 0;
           const rps = records.length > 0 ? (records.length / (elapsed / 1000)) : 0;
           // eslint-disable-next-line no-console

@@ -104,7 +104,12 @@ export function registerRulesetCommand(program: Command) {
     .action(async (opts: { set?: string[]; off?: string[]; on?: string[] }) => {
       const cfgPath = path.join(process.cwd(), 'dnsweeper.config.json');
       let cfg: any = {};
-      try { cfg = JSON.parse(await fs.promises.readFile(cfgPath, 'utf8')); } catch {}
+      try {
+        cfg = JSON.parse(await fs.promises.readFile(cfgPath, 'utf8'));
+      } catch (e) {
+        // eslint-disable-next-line no-console
+        console.error('Failed to read ruleset config', e);
+      }
       cfg.risk = cfg.risk || {};
       cfg.risk.rules = cfg.risk.rules || {};
       cfg.risk.rules.weights = cfg.risk.rules.weights || {};
@@ -116,7 +121,10 @@ export function registerRulesetCommand(program: Command) {
           const mod = await import('../../core/risk/rules.js');
           const RULES: Record<string, unknown> = (mod as any).RULES || {};
           KNOWN = new Set(Object.keys(RULES));
-        } catch {}
+        } catch (e) {
+          // eslint-disable-next-line no-console
+          console.error('Failed to load known rules for validation', e);
+        }
         for (const p of opts.set) {
           const [k, v] = String(p).split('=');
           const num = Number(v);
