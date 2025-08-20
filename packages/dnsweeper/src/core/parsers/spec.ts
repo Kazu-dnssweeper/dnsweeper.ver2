@@ -3,7 +3,7 @@ export type Provider = 'cloudflare' | 'route53' | 'generic';
 export type HeaderSpec = {
   required: string[];
   optional: string[];
-  aliases?: Record<string, string>; // lower-case alias -> canonical
+  aliases?: Record<string, string>;
 };
 
 const lc = (a: string[]) => a.map((s) => s.toLowerCase());
@@ -27,6 +27,9 @@ export const HEADER_SPECS: Record<Provider, HeaderSpec> = {
 
 export function validateHeaders(provider: Provider, headers: string[]): { ok: boolean; missing: string[] } {
   const hset = new Set(headers.map((h) => h.toLowerCase().trim()));
+  if (provider === 'generic' && hset.has('domain')) {
+    return { ok: true, missing: [] };
+  }
   const spec = HEADER_SPECS[provider];
   const missing = spec.required.filter((r) => !hset.has(r));
   return { ok: missing.length === 0, missing };
