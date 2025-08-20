@@ -60,6 +60,19 @@ jobs:
         with:
           pattern: bench-m7-100k-run-*
           path: bench-artifacts
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Compute median and verdict
+        id: agg
+        run: node scripts/bench/aggregate-median.js bench-artifacts
+      - name: Echo verdict
+        run: |
+          echo "values=${{ steps.agg.outputs.values }}"
+          echo "median=${{ steps.agg.outputs.median }}"
+          echo "needed=${{ steps.agg.outputs.needed }}"
+          echo "pass=${{ steps.agg.outputs.pass }}"
       - name: Summarize combined (median across runs)
         run: |
           echo '### M7 Bench (100k x3) Combined Summary' >> "$GITHUB_STEP_SUMMARY"
