@@ -1,4 +1,4 @@
-import { Command } from 'commander';
+import { Command, InvalidOptionArgumentError } from 'commander';
 import fs from 'node:fs';
 import Papa from 'papaparse';
 import pLimit from 'p-limit';
@@ -69,20 +69,28 @@ async function probeDomain(domain: string, timeoutMs: number, userAgent?: string
 }
 
 export function registerAnalyzeCommand(program: Command) {
+  const intRange = (name: string, min: number, max: number) => (v: string) => {
+    const n = Number(v);
+    if (!Number.isInteger(n) || n < min || n > max) {
+      throw new InvalidOptionArgumentError(`${name} must be an integer ${min}-${max}`);
+    }
+    return n;
+  };
+
   program
     .command('analyze')
     .argument('<input>', 'input CSV/JSON path')
     .option('--http-check', 'enable HTTP probing')
-    .option('-c, --concurrency <n>', 'max concurrent probes', (v) => parseInt(String(v), 10), 5)
-    .option('-t, --timeout <ms>', 'per-request timeout (ms)', (v) => parseInt(String(v), 10), 5000)
+    .option('-c, --concurrency <n>', 'max concurrent probes (1-1000)', intRange('concurrency', 1, 1000), 5)
+    .option('-t, --timeout <ms>', 'per-request timeout (ms, 1-60000)', intRange('timeout', 1, 60000), 5000)
     .option('--summary', 'print risk summary (with --http-check)', false)
     .option('--doh', 'enable DNS over HTTPS resolution', false)
     .option('--doh-endpoint <url>', 'DoH endpoint (default: https://dns.google/resolve)')
     .option('--dns-type <type>', 'QTYPE(s): A|AAAA|CNAME|TXT|SRV|CAA|MX|NS|PTR (comma-separated supported)', 'A')
-    .option('--dns-timeout <ms>', 'DNS timeout (ms)', (v) => parseInt(String(v), 10), 3000)
-    .option('--dns-retries <n>', 'DNS retries', (v) => parseInt(String(v), 10), 2)
+    .option('--dns-timeout <ms>', 'DNS timeout (ms, 1-60000)', intRange('dns-timeout', 1, 60000), 3000)
+    .option('--dns-retries <n>', 'DNS retries (0-10)', intRange('dns-retries', 0, 10), 2)
     .option('--allow-private', 'allow probing private/special domains or IPs', false)
-    .option('--qps <n>', 'overall queries per second limit', (v) => parseInt(String(v), 10), 0)
+    .option('--qps <n>', 'overall queries per second limit (0-10000)', intRange('qps', 0, 10000), 0)
     .option('--user-agent <ua>', 'override HTTP User-Agent header')
     .option('--ruleset <name>', 'apply ruleset from directory to adjust risk')
     .option('--ruleset-dir <dir>', 'ruleset directory', '.tmp/rulesets')
