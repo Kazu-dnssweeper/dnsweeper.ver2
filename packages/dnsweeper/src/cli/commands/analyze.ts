@@ -262,259 +262,264 @@ export function registerAnalyzeCommand(program: Command) {
           const httpErrorCounts: Record<string, number> = {};
           // snapshot metadata
           const rsMeta = await getRulesetVersion();
-          await Promise.all(
-            domains.map((domain, idx) =>
-              limit(async () => {
-                if ((processedSet as Set<string>).has(domain)) return;
-                const t0 = Date.now();
-                await gate();
-                // DNS -> HTTP (serial)
-                const qname = domain.endsWith('.') ? domain : `${domain}.`;
-                const dnsTypes = String(options.dnsType || 'A')
-                  .split(',')
-                  .map((s) => s.trim().toUpperCase())
-                  .filter(Boolean) as QType[];
-                const rrList = (options.doh
-                  ? await Promise.all(
-                      dnsTypes.map((qt) =>
-                        resolveDoh(qname, qt, {
-                          dohEndpoint: options.dohEndpoint,
-                          timeoutMs: options.dnsTimeout,
-                          retries: options.dnsRetries,
-                          cd: true,
-                        })
+          const batchSize = Math.min(50, Math.max(5, options.concurrency ?? 5));
+          for (let i = 0; i < domains.length; i += batchSize) {
+            const batch = domains.slice(i, i + batchSize);
+            await Promise.all(
+              batch.map((domain, batchIdx) => {
+                const idx = i + batchIdx;
+                return limit(async () => {
+                  if ((processedSet as Set<string>).has(domain)) return;
+                  const t0 = Date.now();
+                  await gate();
+                  // DNS -> HTTP (serial)
+                  const qname = domain.endsWith('.') ? domain : `${domain}.`;
+                  const dnsTypes = String(options.dnsType || 'A')
+                    .split(',')
+                    .map((s) => s.trim().toUpperCase())
+                    .filter(Boolean) as QType[];
+                  const rrList = (options.doh
+                    ? await Promise.all(
+                        dnsTypes.map((qt) =>
+                          resolveDoh(qname, qt, {
+                            dohEndpoint: options.dohEndpoint,
+                            timeoutMs: options.dnsTimeout,
+                            retries: options.dnsRetries,
+                            cd: true,
+                          })
+                        )
                       )
-                    )
-                  : []) as Array<{ status: string; chain: Array<{ type: string; data: string; ttl?: number }>; elapsedMs: number; qtype?: string }>;
-                // Short-circuit: if DoH says NXDOMAIN (for all queried types), skip HTTP probes
-                const dohAllNx = options.doh && rrList.length > 0 && rrList.every((r) => r.status === 'NXDOMAIN');
-                const probed = options.httpCheck
-                  ? (dohAllNx && !options.httpOnNxdomain
-                      ? ({ https: { ok: false }, http: { ok: false }, risk: 'high' as RiskLevel } as any)
-                      : await probeDomain(domain, options.timeout ?? 5000, options.userAgent))
-                  : ({ https: { ok: false }, http: { ok: false }, risk: 'low' as RiskLevel } as any);
+                    : []) as Array<{ status: string; chain: Array<{ type: string; data: string; ttl?: number }>; elapsedMs: number; qtype?: string }>;
+                  // Short-circuit: if DoH says NXDOMAIN (for all queried types), skip HTTP probes
+                  const dohAllNx = options.doh && rrList.length > 0 && rrList.every((r) => r.status === 'NXDOMAIN');
+                  const probed = options.httpCheck
+                    ? (dohAllNx && !options.httpOnNxdomain
+                        ? ({ https: { ok: false }, http: { ok: false }, risk: 'high' as RiskLevel } as any)
+                        : await probeDomain(domain, options.timeout ?? 5000, options.userAgent))
+                    : ({ https: { ok: false }, http: { ok: false }, risk: 'low' as RiskLevel } as any);
 
-                let dnsResult:
-                  | {
-                      status: string;
-                      chain: Array<{ type: string; data: string; ttl?: number }>;
-                      elapsedMs: number;
-                      queries?: Array<{ type: string; status: string; elapsedMs: number; answers: number }>;
-                    }
-                  | undefined;
-                if (options.doh) {
-                  // Aggregate multiple qtypes: prefer NOERROR if any; else TIMEOUT/SERVFAIL -> medium; all NXDOMAIN -> high-ish
-                  const queries = rrList.map((r, i) => ({
-                    type: dnsTypes[i] as string,
-                    status: r.status,
-                    elapsedMs: r.elapsedMs,
-                    answers: r.chain?.length || 0,
-                  }));
-                  const anyNoError = rrList.some((r) => r.status === 'NOERROR');
-                  const anyTimeout = rrList.some((r) => r.status === 'TIMEOUT');
-                  const anyServfail = rrList.some((r) => r.status === 'SERVFAIL');
-                  const allNx = rrList.length > 0 && rrList.every((r) => r.status === 'NXDOMAIN');
-                  const status = anyNoError ? 'NOERROR' : allNx ? 'NXDOMAIN' : anyTimeout ? 'TIMEOUT' : anyServfail ? 'SERVFAIL' : 'SERVFAIL';
-                  const chain = rrList.flatMap((r) => r.chain || []);
-                  const elapsedMs = rrList.reduce((sum, r) => sum + (r.elapsedMs || 0), 0);
-                  dnsResult = { status, chain, elapsedMs, queries };
-                }
-                // Private/special filters
-                let skipped = false;
-                let skipReason: string | undefined;
-                if (options.doh && dohAllNx && !options.httpOnNxdomain) {
-                  skipped = true;
-                  skipReason = 'nxdomain';
-                }
-                if (!options.allowPrivate) {
-                  const privateName = domain ? mightBePrivateName(domain) : false;
-                  const privateIP = (rrList || []).some((r) =>
-                    (r.chain || []).some((h) =>
-                      (h.type === 'A' && (isPrivateIPv4(h.data) || isSpecialIPv4(h.data))) ||
-                      (h.type === 'AAAA' && isPrivateIPv6(h.data))
-                    )
-                  );
-                  if (privateName || privateIP) {
-                    skipped = true;
-                    skipReason = privateName ? 'private-name' : 'private-ip';
+                  let dnsResult:
+                    | {
+                        status: string;
+                        chain: Array<{ type: string; data: string; ttl?: number }>;
+                        elapsedMs: number;
+                        queries?: Array<{ type: string; status: string; elapsedMs: number; answers: number }>;
+                      }
+                    | undefined;
+                  if (options.doh) {
+                    // Aggregate multiple qtypes: prefer NOERROR if any; else TIMEOUT/SERVFAIL -> medium; all NXDOMAIN -> high-ish
+                    const queries = rrList.map((r, i) => ({
+                      type: dnsTypes[i] as string,
+                      status: r.status,
+                      elapsedMs: r.elapsedMs,
+                      answers: r.chain?.length || 0,
+                    }));
+                    const anyNoError = rrList.some((r) => r.status === 'NOERROR');
+                    const anyTimeout = rrList.some((r) => r.status === 'TIMEOUT');
+                    const anyServfail = rrList.some((r) => r.status === 'SERVFAIL');
+                    const allNx = rrList.length > 0 && rrList.every((r) => r.status === 'NXDOMAIN');
+                    const status = anyNoError ? 'NOERROR' : allNx ? 'NXDOMAIN' : anyTimeout ? 'TIMEOUT' : anyServfail ? 'SERVFAIL' : 'SERVFAIL';
+                    const chain = rrList.flatMap((r) => r.chain || []);
+                    const elapsedMs = rrList.reduce((sum, r) => sum + (r.elapsedMs || 0), 0);
+                    dnsResult = { status, chain, elapsedMs, queries };
                   }
-                }
+                  // Private/special filters
+                  let skipped = false;
+                  let skipReason: string | undefined;
+                  if (options.doh && dohAllNx && !options.httpOnNxdomain) {
+                    skipped = true;
+                    skipReason = 'nxdomain';
+                  }
+                  if (!options.allowPrivate) {
+                    const privateName = domain ? mightBePrivateName(domain) : false;
+                    const privateIP = (rrList || []).some((r) =>
+                      (r.chain || []).some((h) =>
+                        (h.type === 'A' && (isPrivateIPv4(h.data) || isSpecialIPv4(h.data))) ||
+                        (h.type === 'AAAA' && isPrivateIPv6(h.data))
+                      )
+                    );
+                    if (privateName || privateIP) {
+                      skipped = true;
+                      skipReason = privateName ? 'private-name' : 'private-ip';
+                    }
+                  }
 
-                // SRV candidates (annotation + optional probing)
-                const candidates: string[] = [];
-                if (options.doh && dnsResult) {
-                  const srv = (dnsResult.chain || []).filter((h) => String(h.type).toUpperCase() === 'SRV');
-                  for (const h of srv) {
-                    const parts = String(h.data || '').trim().split(/\s+/);
-                    if (parts.length >= 4) {
-                      const port = parseInt(parts[2], 10);
-                      const target = parts[3];
-                      if (Number.isFinite(port) && target) {
-                        if (port === 443) candidates.push(`https://${target}:${port}/`);
-                        else if (port === 80) candidates.push(`http://${target}:${port}/`);
-                        else {
-                          candidates.push(`https://${target}:${port}/`);
-                          candidates.push(`http://${target}:${port}/`);
+                  // SRV candidates (annotation + optional probing)
+                  const candidates: string[] = [];
+                  if (options.doh && dnsResult) {
+                    const srv = (dnsResult.chain || []).filter((h) => String(h.type).toUpperCase() === 'SRV');
+                    for (const h of srv) {
+                      const parts = String(h.data || '').trim().split(/\s+/);
+                      if (parts.length >= 4) {
+                        const port = parseInt(parts[2], 10);
+                        const target = parts[3];
+                        if (Number.isFinite(port) && target) {
+                          if (port === 443) candidates.push(`https://${target}:${port}/`);
+                          else if (port === 80) candidates.push(`http://${target}:${port}/`);
+                          else {
+                            candidates.push(`https://${target}:${port}/`);
+                            candidates.push(`http://${target}:${port}/`);
+                          }
                         }
                       }
                     }
                   }
-                }
 
-                // Optional probing of first SRV candidate if base checks failed
-                let srvProbe: { ok: boolean; status?: number; finalUrl?: string; errorType?: string } | undefined;
-                if (options.httpCheck && options.probeSrv && !skipped && !probed.https.ok && !probed.http.ok && candidates.length > 0) {
-                  try {
-                    const url = candidates[0];
-                    const r = await (await import('../../core/http/probe.js')).probeUrl(url, {
-                      timeoutMs: options.timeout ?? 5000,
-                      userAgent: options.userAgent,
-                      maxRedirects: 5,
-                      method: 'HEAD',
-                    });
-                    srvProbe = { ok: !!r.ok, status: (r as any).status, finalUrl: (r as any).finalUrl, errorType: (r as any).errorType };
-                    if (srvProbe.ok) {
-                      probed.http = { ok: true, status: srvProbe.status } as any;
-                      if (probed.risk !== 'low') probed.risk = 'medium';
+                  // Optional probing of first SRV candidate if base checks failed
+                  let srvProbe: { ok: boolean; status?: number; finalUrl?: string; errorType?: string } | undefined;
+                  if (options.httpCheck && options.probeSrv && !skipped && !probed.https.ok && !probed.http.ok && candidates.length > 0) {
+                    try {
+                      const url = candidates[0];
+                      const r = await (await import('../../core/http/probe.js')).probeUrl(url, {
+                        timeoutMs: options.timeout ?? 5000,
+                        userAgent: options.userAgent,
+                        maxRedirects: 5,
+                        method: 'HEAD',
+                      });
+                      srvProbe = { ok: !!r.ok, status: (r as any).status, finalUrl: (r as any).finalUrl, errorType: (r as any).errorType };
+                      if (srvProbe.ok) {
+                        probed.http = { ok: true, status: srvProbe.status } as any;
+                        if (probed.risk !== 'low') probed.risk = 'medium';
+                      }
+                    } catch {
+                      // ignore
                     }
+                  }
+
+                  const dt = Date.now() - t0;
+                  const isFail = !!(options.httpCheck && !skipped && !probed.https.ok && !probed.http.ok);
+                  runner.update(dt, isFail);
+                  if (options.httpCheck && !skipped) {
+                    const tag = (probed.https as any)?.ok || (probed.http as any)?.ok ? 'ok' : ((probed.https as any)?.errorType || (probed.http as any)?.errorType || 'unknown');
+                    httpErrorCounts[tag] = (httpErrorCounts[tag] || 0) + 1;
+                  }
+
+                  // Combine risk: heuristic first (preserve existing behavior)
+                  let risk: RiskLevel = probed.risk;
+                  if (options.doh && dnsResult) {
+                    if (dnsResult.status === 'NOERROR') {
+                      // keep HTTP-based risk
+                    } else if (dnsResult.status === 'NXDOMAIN') {
+                      // If querying multiple types, NXDOMAIN across all -> high
+                      risk = 'high';
+                    } else if (dnsResult.status === 'TIMEOUT' || dnsResult.status === 'SERVFAIL') {
+                      risk = risk === 'high' ? 'high' : 'medium';
+                    }
+                  }
+                  // Then consult Risk Engine but do not downgrade below heuristic
+                  let evCombined: { score: number; level: string; evidences: any[] } | null = null;
+                  try {
+                    const ctx = {
+                      name: domain,
+                      dns: dnsResult ? { status: dnsResult.status, chain: dnsResult.chain } : undefined,
+                      http: {
+                        httpsOk: !!(probed as any).https?.ok,
+                        httpOk: !!(probed as any).http?.ok,
+                        statuses: [
+                          (probed as any).https?.status as number | undefined,
+                          (probed as any).http?.status as number | undefined,
+                        ].filter((x) => typeof x === 'number') as number[],
+                      },
+                    };
+                    const ev = evaluateRisk(ctx as any);
+                    evCombined = ev as any;
+                    const rank = (x: string) => (x === 'low' ? 0 : x === 'medium' ? 1 : 2);
+                    // Do not downgrade below heuristic; pick the higher risk level
+                    risk = rank(ev.level) > rank(risk) ? (ev.level as RiskLevel) : risk;
                   } catch {
                     // ignore
                   }
-                }
-
-                const dt = Date.now() - t0;
-                const isFail = !!(options.httpCheck && !skipped && !probed.https.ok && !probed.http.ok);
-                runner.update(dt, isFail);
-                if (options.httpCheck && !skipped) {
-                  const tag = (probed.https as any)?.ok || (probed.http as any)?.ok ? 'ok' : ((probed.https as any)?.errorType || (probed.http as any)?.errorType || 'unknown');
-                  httpErrorCounts[tag] = (httpErrorCounts[tag] || 0) + 1;
-                }
-
-                // Combine risk: heuristic first (preserve existing behavior)
-                let risk: RiskLevel = probed.risk;
-                if (options.doh && dnsResult) {
-                  if (dnsResult.status === 'NOERROR') {
-                    // keep HTTP-based risk
-                  } else if (dnsResult.status === 'NXDOMAIN') {
-                    // If querying multiple types, NXDOMAIN across all -> high
-                    risk = 'high';
-                  } else if (dnsResult.status === 'TIMEOUT' || dnsResult.status === 'SERVFAIL') {
-                    risk = risk === 'high' ? 'high' : 'medium';
+                  if (skipped) {
+                    if (!options.doh || (dnsResult && dnsResult.status === 'NOERROR')) risk = 'low';
                   }
-                }
-                // Then consult Risk Engine but do not downgrade below heuristic
-                let evCombined: { score: number; level: string; evidences: any[] } | null = null;
-                try {
-                  const ctx = {
-                    name: domain,
-                    dns: dnsResult ? { status: dnsResult.status, chain: dnsResult.chain } : undefined,
-                    http: {
-                      httpsOk: !!(probed as any).https?.ok,
-                      httpOk: !!(probed as any).http?.ok,
-                      statuses: [
-                        (probed as any).https?.status as number | undefined,
-                        (probed as any).http?.status as number | undefined,
-                      ].filter((x) => typeof x === 'number') as number[],
-                    },
-                  };
-                  const ev = evaluateRisk(ctx as any);
-                  evCombined = ev as any;
-                  const rank = (x: string) => (x === 'low' ? 0 : x === 'medium' ? 1 : 2);
-                  // Do not downgrade below heuristic; pick the higher risk level
-                  risk = rank(ev.level) > rank(risk) ? (ev.level as RiskLevel) : risk;
-                } catch {
-                  // ignore
-                }
-                if (skipped) {
-                  if (!options.doh || (dnsResult && dnsResult.status === 'NOERROR')) risk = 'low';
-                }
-                // Apply ruleset if provided
-                const rs = options.ruleset
-                  ? await loadRuleset(options.rulesetDir || '.tmp/rulesets', options.ruleset)
-                  : null;
-                const adjusted = rs ? applyRules(domain, risk, { ruleset: rs, dns: dnsResult }) : risk;
-                // no-downgrade: do not lower risk below base
-                if (options.noDowngrade) {
-                  const rank = (x: string) => (x === 'low' ? 0 : x === 'medium' ? 1 : 2);
-                  risk = rank(adjusted) < rank(probed.risk) ? probed.risk : adjusted;
-                } else {
-                  risk = adjusted;
-                }
-                // Strong override: NXDOMAIN should yield high in DoH-only scenarios
-                if (options.doh && dnsResult && dnsResult.status === 'NXDOMAIN') risk = 'high';
-                if (risk === 'low') low += 1;
-                else if (risk === 'medium') medium += 1;
-                else high += 1;
-                results[idx] = {
-                  domain,
-                  risk,
-                  https: skipped ? undefined : probed.https,
-                  http: skipped ? undefined : probed.http,
-                  dns: dnsResult,
-                  original: options.includeOriginal ? originals[idx] : undefined,
-                  ...(options.includeEvidence && evCombined
-                    ? { riskScore: evCombined.score, evidences: evCombined.evidences }
-                    : {}),
-                  ...(candidates.length > 0 ? { candidates } : {}),
-                  ...(skipped ? { skipped: true, skipReason } : {}),
-                };
-                // Snapshot best-effort with simple rotation
-                try {
-                  if (snapshotPath) {
-                    // rotate: keep up to 2 generations (.1, .2)
-                    const pathMod = await import('node:path');
-                    const fsMod = fs.promises;
-                    const dir = pathMod.dirname(snapshotPath);
-                    await fsMod.mkdir(dir, { recursive: true });
-                    const r1 = `${snapshotPath}.1`;
-                    const r2 = `${snapshotPath}.2`;
-                    try { await fsMod.unlink(r2); } catch (e) {
-                      // eslint-disable-next-line no-console
-                      console.error('Failed to remove snapshot rotation file', e);
-                    }
-                    try { await fsMod.rename(r1, r2); } catch (e) {
-                      // eslint-disable-next-line no-console
-                      console.error('Failed to rotate snapshot file', e);
-                    }
-                    try { await fsMod.rename(snapshotPath, r1); } catch (e) {
-                      // eslint-disable-next-line no-console
-                      console.error('Failed to rotate snapshot file to .1', e);
-                    }
-                    const snap = { meta: { inputHash, execId, ts: new Date().toISOString(), ruleset: rsMeta, total: domains.length, processed: results.filter(Boolean).length }, results: results.filter(Boolean) };
-                    await fsMod.writeFile(snapshotPath, JSON.stringify(snap), 'utf8');
+                  // Apply ruleset if provided
+                  const rs = options.ruleset
+                    ? await loadRuleset(options.rulesetDir || '.tmp/rulesets', options.ruleset)
+                    : null;
+                  const adjusted = rs ? applyRules(domain, risk, { ruleset: rs, dns: dnsResult }) : risk;
+                  // no-downgrade: do not lower risk below base
+                  if (options.noDowngrade) {
+                    const rank = (x: string) => (x === 'low' ? 0 : x === 'medium' ? 1 : 2);
+                    risk = rank(adjusted) < rank(probed.risk) ? probed.risk : adjusted;
+                  } else {
+                    risk = adjusted;
                   }
-                  } catch (e) {
-                    // eslint-disable-next-line no-console
-                    console.error('Failed to write snapshot', e);
-                  }
-                // Stale detection v1
-                try {
-                  const { detectStale } = await import('../../core/sweep/detector.js');
-                  const det = detectStale(
+                  // Strong override: NXDOMAIN should yield high in DoH-only scenarios
+                  if (options.doh && dnsResult && dnsResult.status === 'NXDOMAIN') risk = 'high';
+                  if (risk === 'low') low += 1;
+                  else if (risk === 'medium') medium += 1;
+                  else high += 1;
+                  results[idx] = {
                     domain,
                     risk,
-                    results[idx].https,
-                    results[idx].http,
-                    dnsResult,
-                    (results[idx] as any).original?.type
-                  );
-                  results[idx].action = det.action;
-                  results[idx].reason = det.reason;
-                  (results[idx] as any).reasonCode = det.reasonCode;
-                  results[idx].confidence = det.confidence;
-                } catch {
-                  // ignore detection errors
-                }
-                // Failure spike backoff: if recent 10 have >70% failures, pause briefly
-                recent.push(options.httpCheck ? (!skipped && !probed.https.ok && !probed.http.ok) : false);
-                if (recent.length > 10) recent.shift();
-                const failCount = recent.filter(Boolean).length;
-                if (recent.length >= 10 && failCount / recent.length > 0.7) {
-                  await new Promise((r) => setTimeout(r, 1000));
-                }
+                    https: skipped ? undefined : probed.https,
+                    http: skipped ? undefined : probed.http,
+                    dns: dnsResult,
+                    original: options.includeOriginal ? originals[idx] : undefined,
+                    ...(options.includeEvidence && evCombined
+                      ? { riskScore: evCombined.score, evidences: evCombined.evidences }
+                      : {}),
+                    ...(candidates.length > 0 ? { candidates } : {}),
+                    ...(skipped ? { skipped: true, skipReason } : {}),
+                  };
+                  // Snapshot best-effort with simple rotation
+                  try {
+                    if (snapshotPath) {
+                      // rotate: keep up to 2 generations (.1, .2)
+                      const pathMod = await import('node:path');
+                      const fsMod = fs.promises;
+                      const dir = pathMod.dirname(snapshotPath);
+                      await fsMod.mkdir(dir, { recursive: true });
+                      const r1 = `${snapshotPath}.1`;
+                      const r2 = `${snapshotPath}.2`;
+                      try { await fsMod.unlink(r2); } catch (e) {
+                        // eslint-disable-next-line no-console
+                        console.error('Failed to remove snapshot rotation file', e);
+                      }
+                      try { await fsMod.rename(r1, r2); } catch (e) {
+                        // eslint-disable-next-line no-console
+                        console.error('Failed to rotate snapshot file', e);
+                      }
+                      try { await fsMod.rename(snapshotPath, r1); } catch (e) {
+                        // eslint-disable-next-line no-console
+                        console.error('Failed to rotate snapshot file to .1', e);
+                      }
+                      const snap = { meta: { inputHash, execId, ts: new Date().toISOString(), ruleset: rsMeta, total: domains.length, processed: results.filter(Boolean).length }, results: results.filter(Boolean) };
+                      await fsMod.writeFile(snapshotPath, JSON.stringify(snap), 'utf8');
+                    }
+                    } catch (e) {
+                      // eslint-disable-next-line no-console
+                      console.error('Failed to write snapshot', e);
+                    }
+                  // Stale detection v1
+                  try {
+                    const { detectStale } = await import('../../core/sweep/detector.js');
+                    const det = detectStale(
+                      domain,
+                      risk,
+                      results[idx].https,
+                      results[idx].http,
+                      dnsResult,
+                      (results[idx] as any).original?.type
+                    );
+                    results[idx].action = det.action;
+                    results[idx].reason = det.reason;
+                    (results[idx] as any).reasonCode = det.reasonCode;
+                    results[idx].confidence = det.confidence;
+                  } catch {
+                    // ignore detection errors
+                  }
+                  // Failure spike backoff: if recent 10 have >70% failures, pause briefly
+                  recent.push(options.httpCheck ? (!skipped && !probed.https.ok && !probed.http.ok) : false);
+                  if (recent.length > 10) recent.shift();
+                  const failCount = recent.filter(Boolean).length;
+                  if (recent.length >= 10 && failCount / recent.length > 0.7) {
+                    await new Promise((r) => setTimeout(r, 1000));
+                  }
+                });
               })
-            )
-          );
+            );
+          }
           runner.done();
           summary = { low, medium, high };
           if (!options.quiet) {
