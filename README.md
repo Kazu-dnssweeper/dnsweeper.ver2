@@ -1,5 +1,7 @@
 # DNSweeper
 
+<!-- Verification comment added by Devin AI -->
+
 [English](README.en.md) | 日本語
 
 ![CI Unit](https://github.com/Kazu-dnssweeper/dnsweeper.ver2/actions/workflows/ci-unit.yml/badge.svg)
