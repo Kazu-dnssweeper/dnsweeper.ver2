@@ -64,7 +64,10 @@ export function applyRules(
     const checks: Array<{ contains?: string; regex?: string; risk?: RiskLevel; scoreDelta?: number }> = [];
     for (const s of rs.domainIncludes || []) checks.push({ contains: s, scoreDelta: 0.1 });
     for (const s of rs.domainRegex || []) checks.push({ regex: s, scoreDelta: 0.1 });
-    for (const r of rs.rules || []) checks.push(r.when as any as { contains?: string; regex?: string; risk?: RiskLevel; scoreDelta?: number });
+    for (const r of rs.rules || []) {
+      const { contains, regex } = r.when;
+      checks.push({ contains, regex, risk: r.risk, scoreDelta: r.scoreDelta });
+    }
     for (const c of checks) {
       if (c.contains && domain.includes(c.contains)) {
         score += c.scoreDelta ?? 0.1;

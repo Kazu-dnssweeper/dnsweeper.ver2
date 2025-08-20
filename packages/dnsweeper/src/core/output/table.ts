@@ -16,7 +16,8 @@ export function renderTable<T extends Record<string, unknown>>(
   const table = new Table({ head, colWidths: colWidths.length ? colWidths : undefined });
   for (const r of rows) {
     const line = columns.map((c) => {
-      const v = (r as any)[c.key as string];
+      const key = c.key as keyof T;
+      const v = r[key];
       const out = c.map ? c.map(v, r) : v;
       if (out === null || out === undefined) return '';
       if (typeof out === 'object') return JSON.stringify(out);

@@ -1,6 +1,14 @@
 import { Command } from 'commander';
 import fs from 'node:fs';
 
+interface AnnotatedRecord {
+  domain?: string;
+  note?: string;
+  labels?: string[];
+  marks?: Record<string, string>;
+  [key: string]: unknown;
+}
+
 type AnnotateOptions = {
   output?: string;
   contains?: string;
@@ -11,8 +19,8 @@ type AnnotateOptions = {
   pretty?: boolean;
 };
 
-function matchDomain(rec: Record<string, unknown>, contains?: string, regex?: RegExp): boolean {
-  const domain = String((rec as any).domain ?? '');
+function matchDomain(rec: AnnotatedRecord, contains?: string, regex?: RegExp): boolean {
+  const domain = String(rec.domain ?? '');
   if (!domain) return false;
   if (contains && domain.includes(contains)) return true;
   if (regex && regex.test(domain)) return true;
@@ -55,19 +63,19 @@ export function registerAnnotateCommand(program: Command) {
         }
         let matched = 0;
 
-        const out = (data as Record<string, unknown>[]).map((r) => {
+        const out = (data as AnnotatedRecord[]).map((r) => {
           if (matchDomain(r, opts.contains, re)) {
             matched += 1;
-            const next: Record<string, unknown> = { ...r };
+            const next: AnnotatedRecord = { ...r };
             if (opts.note) {
-              const prev = String((next as any).note ?? '').trim();
+              const prev = String(next.note ?? '').trim();
               next.note = prev ? `${prev}; ${opts.note}` : opts.note;
             }
             if (labels.length) {
-              next.labels = addLabels((next as any).labels, labels);
+              next.labels = addLabels(next.labels, labels);
             }
             if (Object.keys(marks).length) {
-              const prev = (next as any).marks || {};
+              const prev = next.marks || {};
               next.marks = { ...prev, ...marks };
             }
             return next;

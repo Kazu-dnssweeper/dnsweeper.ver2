@@ -1,5 +1,6 @@
 import { Command } from 'commander';
 import fs from 'node:fs';
+import type { AnalyzeResult } from '../types.js';
 
 type PlanItem = {
   domain: string;
@@ -54,16 +55,21 @@ export function registerSweepCommand(program: Command) {
         const incRe = opts.domainInclude ? new RegExp(String(opts.domainInclude)) : null;
         const excRe = opts.domainExclude ? new RegExp(String(opts.domainExclude)) : null;
         const rank = (x: string) => (x === 'low' ? 0 : x === 'medium' ? 1 : 2);
-        for (const r of data as any[]) {
+        const records = data as AnalyzeResult[];
+        for (const r of records) {
           const action = String(r.action || 'keep');
           const conf = typeof r.confidence === 'number' ? r.confidence : 0;
           const domain = String(r.domain || '');
-          const risk = (['low', 'medium', 'high'] as const).includes(r.risk) ? (r.risk as 'low' | 'medium' | 'high') : undefined;
+            const risk = r.risk && (['low', 'medium', 'high'] as const).includes(r.risk)
+              ? (r.risk as 'low' | 'medium' | 'high')
+              : undefined;
           if (!actSet.has(action)) continue;
           if (conf < (opts.minConfidence ?? 0.7)) continue;
           if (incRe && !incRe.test(domain)) continue;
           if (excRe && excRe.test(domain)) continue;
-          if (opts.minRisk && risk && rank(risk) < rank(opts.minRisk)) continue;
+          if (opts.minRisk && risk) {
+            if (rank(risk as 'low' | 'medium' | 'high') < rank(opts.minRisk as 'low' | 'medium' | 'high')) continue;
+          }
 
           plan.push({
             domain,
@@ -71,7 +77,7 @@ export function registerSweepCommand(program: Command) {
             action: action as PlanItem['action'],
             reason: String(r.reason || ''),
             confidence: conf,
-            code: String((r as any).reasonCode || ''),
+            code: String(r.reasonCode || ''),
             risk,
           });
         }
@@ -83,13 +89,13 @@ export function registerSweepCommand(program: Command) {
         const max = Math.max(0, opts.maxItems || 0);
         const sliced = max > 0 ? plan.slice(0, max) : plan;
 
-        const fmt = String((opts as any).format || 'json').toLowerCase();
+        const fmt = String(opts.format || 'json').toLowerCase();
         if (fmt === 'jsonl') {
           const lines = sliced.map((p) => JSON.stringify(p)).join('\n') + '\n';
           await fs.promises.writeFile(opts.output, lines, 'utf8');
         } else if (fmt === 'csv') {
           const { default: Papa } = await import('papaparse');
-          const csv = (Papa as any).unparse(sliced, { header: true });
+          const csv = Papa.unparse(sliced, { header: true });
           await fs.promises.writeFile(opts.output, csv + '\n', 'utf8');
         } else {
           await fs.promises.writeFile(opts.output, JSON.stringify(sliced, null, 2), 'utf8');

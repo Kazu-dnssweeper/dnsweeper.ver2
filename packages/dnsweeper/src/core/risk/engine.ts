@@ -15,7 +15,7 @@ export function evaluateRisk(ctx: RiskContext, enabled: string[] = Object.keys(R
     const res = fn(ctx);
     if (!res) continue;
     const delta = Object.prototype.hasOwnProperty.call(overrides.weights || {}, id)
-      ? Number((overrides.weights as any)[id])
+      ? Number(overrides.weights[id])
       : res.delta;
     score += delta;
     if (res.evidence) evidences.push(res.evidence);

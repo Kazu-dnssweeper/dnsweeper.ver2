@@ -39,7 +39,7 @@ export function registerImportCommand(program: Command) {
         const papaStream = Papa.parse(Papa.NODE_STREAM_INPUT, {
           header: true,
           skipEmptyLines: true,
-        }) as unknown as NodeJS.ReadWriteStream;
+        });
 
         papaStream.on('data', (row: unknown) => {
           const r = row as Record<string, unknown>;
@@ -57,7 +57,7 @@ export function registerImportCommand(program: Command) {
         const cfg = await loadConfig().catch(() => null);
         const provider: Provider = opts.provider || detectProviderFromHeader(headerCaptured || []);
         // Header validation
-        const headers = headerCaptured || [];
+        const headers: string[] = headerCaptured || [];
         const headerCheck = validateHeaders(provider, headers);
         if (!headerCheck.ok) {
           // Push all rows to errors with reason and abort normalization to avoid misleading output
@@ -71,8 +71,8 @@ export function registerImportCommand(program: Command) {
         }
         // Unknown headers warning (not required/optional)
         try {
-          const { HEADER_SPECS } = await import('../../core/parsers/spec.js');
-          const spec: any = (HEADER_SPECS as any)[provider];
+          const { HEADER_SPECS } = await import('../../core/parsers/spec.js') as typeof import('../../core/parsers/spec.js');
+          const spec = HEADER_SPECS[provider];
           const allowed = new Set<string>([...spec.required, ...spec.optional, ...Object.keys(spec.aliases || {})]);
           const unknown = headers
             .map((h) => h.toLowerCase().trim())

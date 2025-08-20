@@ -38,12 +38,12 @@ export const AnalyzeItemSchema = z.object({
         ruleId: z.string(),
         message: z.string(),
         severity: z.enum(['low', 'medium', 'high']),
-        meta: z.record(z.unknown()).optional(),
+        meta: z.record(z.string(), z.unknown()).optional(),
       })
     )
     .optional(),
   candidates: z.array(z.string()).optional(),
-  original: z.record(z.unknown()).optional(),
+  original: z.record(z.string(), z.unknown()).optional(),
   skipped: z.boolean().optional(),
   skipReason: z.string().optional(),
 });

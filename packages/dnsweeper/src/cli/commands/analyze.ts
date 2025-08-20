@@ -13,6 +13,9 @@ import { appendAudit, sha256File, getRulesetVersion } from '../../core/audit/aud
 import { probeUrl } from '../../core/http/probe.js';
 import { evaluateRisk } from '../../core/risk/engine.js';
 import { loadConfig } from '../../core/config/schema.js';
+import type { ProbeResult } from '../../core/http/types.js';
+import type { AnalyzeResult } from '../types.js';
+import type { RiskItem } from '../../core/risk/types.js';
 
 type AnalyzeOptions = {
   httpCheck?: boolean;
@@ -56,15 +59,18 @@ function pickDomain(row: Record<string, unknown>): string | null {
   return null;
 }
 
-async function probeDomain(domain: string, timeoutMs: number, userAgent?: string) {
+async function probeDomain(domain: string, timeoutMs: number, userAgent?: string): Promise<{
+  https: ProbeResult;
+  http: ProbeResult;
+  risk: RiskLevel;
+}> {
   const https = await probeUrl(`https://${domain}/`, { timeoutMs, userAgent, maxRedirects: 5, method: 'HEAD' });
-  let http = { ok: false } as { ok: boolean; status?: number; redirects?: number; finalUrl?: string; elapsedMs?: number; errorType?: string };
+  let http: ProbeResult = { ok: false, elapsedMs: 0 };
   if (!https.ok) {
-    const r = await probeUrl(`http://${domain}/`, { timeoutMs, userAgent, maxRedirects: 5, method: 'HEAD' });
-    http = r as any;
+    http = await probeUrl(`http://${domain}/`, { timeoutMs, userAgent, maxRedirects: 5, method: 'HEAD' });
   }
   const risk: RiskLevel = https.ok ? 'low' : http.ok ? 'medium' : 'high';
-  return { https: https as any, http, risk };
+  return { https, http, risk };
 }
 
 export function registerAnalyzeCommand(program: Command) {
@@ -140,22 +146,7 @@ export function registerAnalyzeCommand(program: Command) {
 
         let summary: { low: number; medium: number; high: number } | null = null;
         const execId = Math.random().toString(36).slice(2, 10);
-        const results: Array<{
-          domain: string;
-          risk?: RiskLevel;
-          https?: { ok: boolean; status?: number };
-          http?: { ok: boolean; status?: number };
-          dns?: {
-            status: string;
-            chain: Array<{ type: string; data: string; ttl?: number }>;
-            elapsedMs: number;
-            queries?: Array<{ type: string; status: string; elapsedMs: number; answers: number }>;
-          };
-          original?: Record<string, unknown>;
-          action?: 'keep' | 'review' | 'delete';
-          reason?: string;
-          confidence?: number;
-        }> = [];
+        const results: AnalyzeResult[] = [];
         // Apply progress interval from config if provided
         let progressIntervalMs: number | undefined;
         try {
@@ -189,7 +180,7 @@ export function registerAnalyzeCommand(program: Command) {
             const rsMetaNow = await getRulesetVersion();
             const matchRuleset = JSON.stringify(snap?.meta?.ruleset || {}) === JSON.stringify(rsMetaNow || {});
             if (snap?.meta?.inputHash === inputHash && matchRuleset && Array.isArray(snap.results)) {
-              for (const r of snap.results as any[]) {
+              for (const r of snap.results as AnalyzeResult[]) {
                 results.push(r);
                 if (r?.domain) processedSet.add(String(r.domain));
               }
@@ -245,7 +236,7 @@ export function registerAnalyzeCommand(program: Command) {
                   .split(',')
                   .map((s) => s.trim().toUpperCase())
                   .filter(Boolean) as QType[];
-                const rrList = (options.doh
+                const rrList = options.doh
                   ? await Promise.all(
                       dnsTypes.map((qt) =>
                         resolveDoh(qname, qt, {
@@ -256,14 +247,19 @@ export function registerAnalyzeCommand(program: Command) {
                         })
                       )
                     )
-                  : []) as Array<{ status: string; chain: Array<{ type: string; data: string; ttl?: number }>; elapsedMs: number; qtype?: string }>;
+                  : ([] as Array<{ status: string; chain: Array<{ type: string; data: string; ttl?: number }>; elapsedMs: number; qtype?: string }>);
                 // Short-circuit: if DoH says NXDOMAIN (for all queried types), skip HTTP probes
                 const dohAllNx = options.doh && rrList.length > 0 && rrList.every((r) => r.status === 'NXDOMAIN');
-                const probed = options.httpCheck
-                  ? (dohAllNx
-                      ? ({ https: { ok: false }, http: { ok: false }, risk: 'high' as RiskLevel } as any)
-                      : await probeDomain(domain, options.timeout ?? 5000, options.userAgent))
-                  : ({ https: { ok: false }, http: { ok: false }, risk: 'low' as RiskLevel } as any);
+                let probed: { https: ProbeResult; http: ProbeResult; risk: RiskLevel };
+                if (options.httpCheck) {
+                  if (dohAllNx) {
+                    probed = { https: { ok: false, elapsedMs: 0 }, http: { ok: false, elapsedMs: 0 }, risk: 'high' };
+                  } else {
+                    probed = await probeDomain(domain, options.timeout ?? 5000, options.userAgent);
+                  }
+                } else {
+                  probed = { https: { ok: false, elapsedMs: 0 }, http: { ok: false, elapsedMs: 0 }, risk: 'low' };
+                }
 
                 let dnsResult:
                   | {
@@ -333,7 +329,7 @@ export function registerAnalyzeCommand(program: Command) {
                 }
 
                 // Optional probing of first SRV candidate if base checks failed
-                let srvProbe: { ok: boolean; status?: number; finalUrl?: string; errorType?: string } | undefined;
+                let srvProbe: ProbeResult | undefined;
                 if (options.httpCheck && options.probeSrv && !skipped && !probed.https.ok && !probed.http.ok && candidates.length > 0) {
                   try {
                     const url = candidates[0];
@@ -343,9 +339,9 @@ export function registerAnalyzeCommand(program: Command) {
                       maxRedirects: 5,
                       method: 'HEAD',
                     });
-                    srvProbe = { ok: !!r.ok, status: (r as any).status, finalUrl: (r as any).finalUrl, errorType: (r as any).errorType };
+                    srvProbe = r;
                     if (srvProbe.ok) {
-                      probed.http = { ok: true, status: srvProbe.status } as any;
+                      probed.http = { ...probed.http, ok: true, status: srvProbe.status, elapsedMs: srvProbe.elapsedMs };
                       if (probed.risk !== 'low') probed.risk = 'medium';
                     }
                   } catch {
@@ -357,7 +353,9 @@ export function registerAnalyzeCommand(program: Command) {
                 const isFail = !!(options.httpCheck && !skipped && !probed.https.ok && !probed.http.ok);
                 runner.update(dt, isFail);
                 if (options.httpCheck && !skipped) {
-                  const tag = (probed.https as any)?.ok || (probed.http as any)?.ok ? 'ok' : ((probed.https as any)?.errorType || (probed.http as any)?.errorType || 'unknown');
+                const tag = probed.https.ok || probed.http.ok
+                  ? 'ok'
+                  : (probed.https.errorType || probed.http.errorType || 'unknown');
                   httpErrorCounts[tag] = (httpErrorCounts[tag] || 0) + 1;
                 }
 
@@ -374,22 +372,21 @@ export function registerAnalyzeCommand(program: Command) {
                   }
                 }
                 // Then consult Risk Engine but do not downgrade below heuristic
-                let evCombined: { score: number; level: string; evidences: any[] } | null = null;
+                let evCombined: RiskItem | null = null;
                 try {
                   const ctx = {
                     name: domain,
                     dns: dnsResult ? { status: dnsResult.status, chain: dnsResult.chain } : undefined,
                     http: {
-                      httpsOk: !!(probed as any).https?.ok,
-                      httpOk: !!(probed as any).http?.ok,
-                      statuses: [
-                        (probed as any).https?.status as number | undefined,
-                        (probed as any).http?.status as number | undefined,
-                      ].filter((x) => typeof x === 'number') as number[],
+                      httpsOk: !!probed.https.ok,
+                      httpOk: !!probed.http.ok,
+                      statuses: [probed.https.status, probed.http.status].filter(
+                        (x): x is number => typeof x === 'number'
+                      ),
                     },
                   };
-                  const ev = evaluateRisk(ctx as any);
-                  evCombined = ev as any;
+                  const ev = evaluateRisk(ctx);
+                  evCombined = ev;
                   const rank = (x: string) => (x === 'low' ? 0 : x === 'medium' ? 1 : 2);
                   // Do not downgrade below heuristic; pick the higher risk level
                   risk = rank(ev.level) > rank(risk) ? (ev.level as RiskLevel) : risk;
@@ -453,11 +450,13 @@ export function registerAnalyzeCommand(program: Command) {
                     results[idx].https,
                     results[idx].http,
                     dnsResult,
-                    (results[idx] as any).original?.type
+                    typeof results[idx].original?.type === 'string'
+                      ? (results[idx].original?.type as string)
+                      : undefined
                   );
                   results[idx].action = det.action;
                   results[idx].reason = det.reason;
-                  (results[idx] as any).reasonCode = det.reasonCode;
+                  results[idx].reasonCode = det.reasonCode;
                   results[idx].confidence = det.confidence;
                 } catch {
                   // ignore detection errors
