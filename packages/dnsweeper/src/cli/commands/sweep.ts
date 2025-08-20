@@ -101,4 +101,15 @@ export function registerSweepCommand(program: Command) {
         process.exit(1);
       }
     });
+
+  // GAまで封印: apply は常に失敗させる（ドキュメントの方針通り）
+  cmd
+    .command('apply')
+    .description('[SEALED] Apply is sealed until GA. Requires two-stage approval.')
+    .option('--confirm', 'explicit confirmation flag (ignored)')
+    .action(async () => {
+      // eslint-disable-next-line no-console
+      console.error('[blocked] sweep apply is sealed until GA. Generate a plan and use a separate, approved process to apply.');
+      process.exit(2);
+    });
 }

@@ -31,6 +31,17 @@ export const ConfigSchema = z.object({
       defaultLabels: z.array(z.string()).optional(),
     })
     .optional(),
+  audit: z
+    .object({
+      buffer: z
+        .object({
+          enabled: z.boolean().optional(),
+          maxEntries: z.number().int().positive().optional(),
+          flushIntervalMs: z.number().int().positive().optional(),
+        })
+        .optional(),
+    })
+    .optional(),
 }).strict();
 
 export type AppConfig = z.infer<typeof ConfigSchema>;

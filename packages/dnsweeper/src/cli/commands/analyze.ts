@@ -16,6 +16,7 @@ import { loadConfig } from '../../core/config/schema.js';
 
 type AnalyzeOptions = {
   httpCheck?: boolean;
+  httpOnNxdomain?: boolean;
   concurrency?: number;
   timeout?: number; // ms per probe
   summary?: boolean; // print risk summary
@@ -87,6 +88,7 @@ export function registerAnalyzeCommand(program: Command) {
     .option('--ruleset-dir <dir>', 'ruleset directory', '.tmp/rulesets')
     .option('--no-downgrade', 'do not lower risk below base after ruleset adjustment', false)
     .option('--probe-srv', 'probe SRV-derived URLs if present', false)
+    .option('--http-on-nxdomain', 'still probe HTTP even if DoH says NXDOMAIN', false)
     .option('--snapshot <file>', 'periodically write snapshot JSON (resume support)', '.tmp/snapshot.json')
     .option('--resume', 'resume from snapshot if input matches', false)
     .option('--quiet', 'suppress periodic progress output', false)
@@ -260,7 +262,7 @@ export function registerAnalyzeCommand(program: Command) {
                 // Short-circuit: if DoH says NXDOMAIN (for all queried types), skip HTTP probes
                 const dohAllNx = options.doh && rrList.length > 0 && rrList.every((r) => r.status === 'NXDOMAIN');
                 const probed = options.httpCheck
-                  ? (dohAllNx
+                  ? (dohAllNx && !options.httpOnNxdomain
                       ? ({ https: { ok: false }, http: { ok: false }, risk: 'high' as RiskLevel } as any)
                       : await probeDomain(domain, options.timeout ?? 5000, options.userAgent))
                   : ({ https: { ok: false }, http: { ok: false }, risk: 'low' as RiskLevel } as any);
@@ -293,7 +295,7 @@ export function registerAnalyzeCommand(program: Command) {
                 // Private/special filters
                 let skipped = false;
                 let skipReason: string | undefined;
-                if (options.doh && dohAllNx) {
+                if (options.doh && dohAllNx && !options.httpOnNxdomain) {
                   skipped = true;
                   skipReason = 'nxdomain';
                 }

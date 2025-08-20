@@ -1,0 +1,68 @@
+name: Bench (M7 100k x3 matrix)
+
+on:
+  workflow_dispatch:
+
+jobs:
+  bench_m7:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    strategy:
+      fail-fast: false
+      matrix:
+        run: [1, 2, 3]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: PNPM version
+        run: pnpm -v
+      - name: Install deps
+        run: pnpm install --no-frozen-lockfile
+      - name: Build
+        run: pnpm -C packages/dnsweeper run build
+      - name: Bench Run ${{ matrix.run }}
+        run: |
+          mkdir -p .tmp
+          timeout 50m node scripts/bench/bench.js \
+            --size 100000 \
+            --preset examples/presets/balanced-100k.json \
+            --http --doh \
+            --timeout 800 --dns-timeout 1200 --dns-retries 1 --qps 220 \
+            2>&1 | tee .tmp/bench_m7_100k_run${{ matrix.run }}.log
+      - name: Summarize
+        run: |
+          # Prefer bench-generated summary JSON if present
+          if [ -f .tmp/bench/bench-100000.summary.json ]; then
+            cp .tmp/bench/bench-100000.summary.json .tmp/bench_m7_100k_run${{ matrix.run }}.summary.json
+            jq -r '"- size=\(.size): rps=\(.rps), elapsed_ms=\(.elapsed_ms)"' .tmp/bench_m7_100k_run${{ matrix.run }}.summary.json >> "$GITHUB_STEP_SUMMARY" || true
+          else
+            node scripts/bench/summarize.js --log .tmp/bench_m7_100k_run${{ matrix.run }}.log --out-json .tmp/bench_m7_100k_run${{ matrix.run }}.summary.json --md >> "$GITHUB_STEP_SUMMARY" || true
+          fi
+      - name: Upload logs and summary
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: bench-m7-100k-run-${{ matrix.run }}
+          path: |
+            .tmp/bench_m7_100k_run${{ matrix.run }}.log
+            .tmp/bench_m7_100k_run${{ matrix.run }}.summary.json
+
+  aggregate:
+    runs-on: ubuntu-latest
+    needs: bench_m7
+    if: always()
+    steps:
+      - name: Download all run artifacts
+        uses: actions/download-artifact@v4
+        with:
+          pattern: bench-m7-100k-run-*
+          path: bench-artifacts
+      - name: Summarize combined (median across runs)
+        run: |
+          echo '### M7 Bench (100k x3) Combined Summary' >> "$GITHUB_STEP_SUMMARY"
+          for f in bench-artifacts/*/*.log; do echo "- $(basename "$f")"; done
+          # Aggregate medians by re-running summarize on each log
+          for f in bench-artifacts/*/*.log; do node scripts/bench/summarize.js --log "$f" --md >> "$GITHUB_STEP_SUMMARY" || true; done

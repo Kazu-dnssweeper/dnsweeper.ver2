@@ -1,0 +1,16 @@
+# Gitleaks config (allowlist skeleton)
+
+[allowlist]
+description = "Allow common generated/vendor paths"
+paths = [
+  "node_modules/",
+  "packages/.*/dist/",
+  "\.tmp/",
+  "artifacts/",
+]
+
+# Add custom allow-listed regexes here if false positives occur
+# [[allowlist.regexes]]
+# description = "Example fake key format"
+# regex = "FAKE_KEY_[A-Z0-9]{16}"
+
