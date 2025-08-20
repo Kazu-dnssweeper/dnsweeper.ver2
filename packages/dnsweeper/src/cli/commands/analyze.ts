@@ -13,6 +13,7 @@ import { appendAudit, sha256File, getRulesetVersion } from '../../core/audit/aud
 import { probeUrl } from '../../core/http/probe.js';
 import { evaluateRisk } from '../../core/risk/engine.js';
 import { loadConfig } from '../../core/config/schema.js';
+import { recordEvent, flush as flushTelemetry } from '../../core/telemetry/telemetry.js';
 
 type AnalyzeOptions = {
   httpCheck?: boolean;
@@ -225,11 +226,14 @@ export function registerAnalyzeCommand(program: Command) {
             console.error('Failed to resume from snapshot', e);
           }
         }
+        let canceled = false;
+        const cancelFlagPath = '.tmp/job.cancel';
 
         if (options?.httpCheck || options?.doh) {
           const limit = pLimit(Math.max(1, options.concurrency ?? 5));
           let low = 0, medium = 0, high = 0;
           runner.start();
+          try { await recordEvent('analyze_start', { total: domains.length }); } catch {}
           if (options.doh) resetDohStats();
           // QPS limiter
           const qps = Math.max(0, options.qps ?? 0);
@@ -264,11 +268,15 @@ export function registerAnalyzeCommand(program: Command) {
           const rsMeta = await getRulesetVersion();
           const batchSize = Math.min(50, Math.max(5, options.concurrency ?? 5));
           for (let i = 0; i < domains.length; i += batchSize) {
+            try {
+              if (fs.existsSync(cancelFlagPath)) { canceled = true; break; }
+            } catch {}
             const batch = domains.slice(i, i + batchSize);
             await Promise.all(
               batch.map((domain, batchIdx) => {
                 const idx = i + batchIdx;
                 return limit(async () => {
+                  if (canceled) return;
                   if ((processedSet as Set<string>).has(domain)) return;
                   const t0 = Date.now();
                   await gate();
@@ -484,7 +492,7 @@ export function registerAnalyzeCommand(program: Command) {
                         // eslint-disable-next-line no-console
                         console.error('Failed to rotate snapshot file to .1', e);
                       }
-                      const snap = { meta: { inputHash, execId, ts: new Date().toISOString(), ruleset: rsMeta, total: domains.length, processed: results.filter(Boolean).length }, results: results.filter(Boolean) };
+                      const snap = { meta: { inputHash, execId, ts: new Date().toISOString(), ruleset: rsMeta, total: domains.length, processed: results.filter(Boolean).length, canceled: !!canceled, httpErrors: httpErrorCounts }, results: results.filter(Boolean) };
                       await fsMod.writeFile(snapshotPath, JSON.stringify(snap), 'utf8');
                     }
                     } catch (e) {
@@ -519,6 +527,9 @@ export function registerAnalyzeCommand(program: Command) {
                 });
               })
             );
+          }
+          if (canceled && !options.quiet) {
+            console.error('[jobs] canceled: partial snapshot written');
           }
           runner.done();
           summary = { low, medium, high };
@@ -608,6 +619,7 @@ export function registerAnalyzeCommand(program: Command) {
 
         // Always print row count for compatibility
         // eslint-disable-next-line no-console
+        try { await recordEvent('analyze_done', { total: results.length }); await recordEvent('doh_stats', getDohStats()); await flushTelemetry(); } catch {}
         console.log(`rows=${rows}`);
       } catch (e) {
         const msg = e instanceof Error ? e.message : String(e);

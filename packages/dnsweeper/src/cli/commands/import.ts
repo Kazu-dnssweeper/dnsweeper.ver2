@@ -57,10 +57,9 @@ export function registerImportCommand(program: Command) {
         const cfg = await loadConfig().catch(() => null);
         const provider: Provider = opts.provider || detectProviderFromHeader(headerCaptured || []);
         // Header validation
-        const headers = headerCaptured || [];
+        const headers: string[] = headerCaptured ? [...headerCaptured] : [];
         const headerCheck = validateHeaders(provider, headers);
         if (!headerCheck.ok) {
-          // Push all rows to errors with reason and abort normalization to avoid misleading output
           const reason = `invalid header: missing [${headerCheck.missing.join(', ')}]`;
           await writeErrorsCsv(
             rows.map((r) => ({ error: reason, row: r })),
@@ -69,21 +68,18 @@ export function registerImportCommand(program: Command) {
           console.error(`header validation failed for provider=${provider}: ${reason}`);
           process.exit(1);
         }
-        // Unknown headers warning (not required/optional)
         try {
           const { HEADER_SPECS } = await import('../../core/parsers/spec.js');
           const spec: any = (HEADER_SPECS as any)[provider];
           const allowed = new Set<string>([...spec.required, ...spec.optional, ...Object.keys(spec.aliases || {})]);
           const unknown = headers
-            .map((h) => h.toLowerCase().trim())
-            .filter((h) => !allowed.has(h));
+            .map((h: string) => h.toLowerCase().trim())
+            .filter((h: string) => !allowed.has(h));
           const uniq = Array.from(new Set(unknown));
           if (uniq.length) {
-            // eslint-disable-next-line no-console
             console.warn(`[warn] unknown headers ignored: ${uniq.join(', ')}`);
           }
         } catch (e) {
-          // eslint-disable-next-line no-console
           console.error('Failed to check unknown headers', e);
         }
 

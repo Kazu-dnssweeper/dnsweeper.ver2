@@ -1,3 +1,7 @@
+DNSweeper CLI
+- Persistent DoH cache: opt-in via config cache.dohPersist.enabled
+- Telemetry: opt-in via config telemetry.enabled (defaults off); endpoint optional
+- Jobs helpers: `dnsweeper jobs status|aggregate|cancel` for snapshot/status/cancel
 # DNSweeper
 
 [English](README.en.md) | 日本語
@@ -73,6 +77,6 @@ npm start -- ruleset weights --set R-003=10 R-005=20
 - ネットワーク状況に依存するため、計測条件（timeout/retry/qps）はdocsに明記
 
 ## リンク / サポート / ライセンス
-- 詳細: docs/SPEC.md, docs/RISK_ENGINE.md, docs/OPERATIONS.md, ROADMAP.md
+- 詳細: docs/SPEC.md, docs/RISK_ENGINE.md, docs/OPERATIONS.md, docs/BENCHMARKS.md, docs/TELEMETRY.md, ROADMAP.md
 - フィードバック: Issues/Discussions歓迎（入力/出力/既定値/ルール優先度など）
 - ライセンス: Apache-2.0

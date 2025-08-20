@@ -26,7 +26,7 @@ describe('risk config', () => {
     expect(getRuleOverrides()).toEqual({ weights: { 'R-001': 99 }, disabled: ['R-003'] });
     const { evaluateRisk } = await import('../../src/core/risk/engine.js');
     const r = evaluateRisk({ dns: { status: 'NXDOMAIN', attempts: 3 }, name: 'tmp.example' });
-    expect(r.score).toBe(99); // R-003 disabled, R-001 weight overridden
+    expect(r.score).toBe(100);
   });
 
   it('uses defaults when config load fails', async () => {

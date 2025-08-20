@@ -5,17 +5,22 @@ function stripDot(s: string): string {
 }
 
 export function normalizeGeneric(row: Record<string, unknown>): CsvRecord {
-  // Expect lower keys: name,type,content,ttl
   const map: Record<string, string> = {};
   for (const k of Object.keys(row)) map[k.toLowerCase()] = k;
-  const get = (k: string) => row[map[k]];
+  const get = (k: string) => (map[k] ? row[map[k]] : undefined);
 
-  const type = String(get('type') ?? '').toUpperCase();
-  const name = stripDot(String(get('name') ?? '').trim());
+  const hasType = !!map['type'];
+  const hasName = !!map['name'];
+  const hasDomain = !!map['domain'];
+
+  const rawType = String(get('type') ?? '').toUpperCase();
+  const type = hasType ? rawType : 'A';
+  const rawName = hasName ? String(get('name') ?? '').trim() : hasDomain ? String(get('domain') ?? '').trim() : '';
+  const name = stripDot(rawName);
   const content = String(get('content') ?? '').trim();
   const ttlRaw = get('ttl');
 
-  if (!name || !type) throw new Error('missing name/type');
+  if (!name) throw new Error('missing name');
   const rec: CsvRecord = { name, type };
   if (content) rec.content = type === 'TXT' ? content.replace(/^\"|\"$/g, '') : content;
   if (ttlRaw !== undefined && ttlRaw !== null && String(ttlRaw).trim() !== '') {
@@ -23,8 +28,7 @@ export function normalizeGeneric(row: Record<string, unknown>): CsvRecord {
     if (Number.isFinite(ttl) && ttl >= 0) rec.ttl = ttl;
     else throw new Error('invalid ttl');
   }
-  // Basic validation: certain types require content
-  if (['A', 'AAAA', 'CNAME', 'TXT'].includes(rec.type) && !rec.content) {
+  if (hasType && ['A', 'AAAA', 'CNAME', 'TXT'].includes(rec.type) && !rec.content) {
     throw new Error('missing content');
   }
   return rec;

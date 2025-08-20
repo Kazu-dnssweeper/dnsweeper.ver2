@@ -5,7 +5,7 @@ export default defineConfig({
   format: ['esm'],
   dts: true,
   sourcemap: true,
-  clean: true,
+  clean: false,
   outDir: 'dist/cli',
   target: 'node20',
 });

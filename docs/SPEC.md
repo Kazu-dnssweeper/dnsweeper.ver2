@@ -1,3 +1,16 @@
+# DNSweeper SPEC updates (cache/telemetry/jobs)
+- Config additions:
+  - cache.dohPersist.enabled: boolean (default: off)
+  - cache.dohPersist.path: string (default: ~/.cache/dnsweeper/doh-cache.jsonl)
+  - telemetry.enabled: boolean (default: off)
+  - telemetry.endpoint: string URL (optional; if absent, logs JSONL to ~/.dnsweeper/telemetry.log)
+- DoH cache:
+  - Persistent JSONL cache honoring TTL; append-only. Used before network call when enabled.
+- Jobs:
+  - jobs status --snapshot <file>
+  - jobs aggregate --dir <dir>
+  - jobs cancel [--flag .tmp/job.cancel] to cooperatively cancel analyze runs.
+
 # DNSweeper 製品仕様（GA想定）
 
 バージョン: 1.0 (GA 想定)
