@@ -24,10 +24,10 @@ export const RulesetSchema = z.object({
 
 export type Ruleset = z.infer<typeof RulesetSchema>;
 
-export function loadRuleset(dir: string, name: string): Ruleset | null {
+export async function loadRuleset(dir: string, name: string): Promise<Ruleset | null> {
   try {
     const file = path.join(dir, `${name}.json`);
-    const raw = fs.readFileSync(file, 'utf8');
+    const raw = await fs.promises.readFile(file, 'utf8');
     const json = JSON.parse(raw);
     return RulesetSchema.parse(json);
   } catch {
