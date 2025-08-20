@@ -1,4 +1,4 @@
-import { Command } from 'commander';
+import { Command, InvalidOptionArgumentError } from 'commander';
 import fs from 'node:fs';
 
 type PlanItem = {
@@ -13,16 +13,31 @@ type PlanItem = {
 export function registerSweepCommand(program: Command) {
   const cmd = program.command('sweep').description('Sweeping helpers');
 
+  const intRange = (name: string, min: number, max: number) => (v: string) => {
+    const n = Number(v);
+    if (!Number.isInteger(n) || n < min || n > max) {
+      throw new InvalidOptionArgumentError(`${name} must be an integer ${min}-${max}`);
+    }
+    return n;
+  };
+  const floatRange = (name: string, min: number, max: number) => (v: string) => {
+    const n = Number(v);
+    if (!Number.isFinite(n) || n < min || n > max) {
+      throw new InvalidOptionArgumentError(`${name} must be between ${min} and ${max}`);
+    }
+    return n;
+  };
+
   cmd
     .command('plan')
     .argument('<input>', 'analyzed JSON (array)')
     .option('-o, --output <file>', 'output plan file (json/jsonl/csv)', 'sweep-plan.json')
-    .option('--min-confidence <n>', 'min confidence 0..1', (v) => parseFloat(String(v)), 0.7)
+    .option('--min-confidence <n>', 'min confidence (0-1)', floatRange('min-confidence', 0, 1), 0.7)
     .option('--actions <list>', 'actions to include (comma-separated)', 'review,delete')
     .option('--domain-include <regex>', 'only include domains matching regex')
     .option('--domain-exclude <regex>', 'exclude domains matching regex')
     .option('--min-risk <level>', 'min risk level: low|medium|high')
-    .option('--max-items <n>', 'limit number of items', (v) => parseInt(String(v), 10), 0)
+    .option('--max-items <n>', 'limit number of items (0-1000000)', intRange('max-items', 0, 1_000_000), 0)
     .option('--sort <key>', 'sort by: confidence|domain', 'confidence')
     .option('--format <fmt>', 'json|jsonl|csv', 'json')
     .description('Generate sweep plan (review/delete) from analyzed results')
