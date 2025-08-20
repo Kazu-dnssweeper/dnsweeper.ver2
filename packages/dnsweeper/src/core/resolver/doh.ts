@@ -1,5 +1,5 @@
-import { fetch as undiciFetch } from 'undici';
 import { getCached, putCached } from './cache.js';
+import { fetchWrapper } from '../http/fetch.js';
 
 export type QType = 'A'|'AAAA'|'CNAME'|'TXT'|'SRV'|'CAA'|'MX'|'NS'|'PTR';
 
@@ -91,7 +91,7 @@ export async function resolveDoh(
       u.searchParams.set('type', qtype);
       u.searchParams.set('cd', cd ? '1' : '0');
 
-      const res = await (customFetch || (undiciFetch as unknown as typeof fetch))(u.toString(), {
+      const res = await (customFetch || fetchWrapper)(u.toString(), {
         method: 'GET',
         headers: { accept: 'application/dns-json' },
         signal: controller.signal,

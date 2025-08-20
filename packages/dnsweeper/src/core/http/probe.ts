@@ -1,5 +1,5 @@
-import { fetch as undiciFetch } from 'undici';
 import { ProbeOptions, ProbeResult, RedirectHop, TlsInfo } from './types.js';
+import { fetchWrapper } from './fetch.js';
 import tls from 'node:tls';
 
 function classifyError(e: unknown): ProbeResult['errorType'] {
@@ -53,12 +53,12 @@ export async function probeUrl(url: string, opts: ProbeOptions = {}): Promise<Pr
 
     // Try HEAD first; fallback to GET on non-2xx or error
     const attempt = async (method: 'HEAD' | 'GET'): Promise<Response> => {
-      return (await (undiciFetch as unknown as typeof fetch)(current, {
+      return fetchWrapper(current, {
         method,
         redirect: 'manual',
         headers: userAgent ? { 'user-agent': userAgent } : undefined,
         signal: controller.signal,
-      })) as unknown as Response;
+      });
     };
 
     let res: Response | null = null;
@@ -76,12 +76,12 @@ export async function probeUrl(url: string, opts: ProbeOptions = {}): Promise<Pr
       const next = new URL(loc, current).toString();
       current = next;
       redirects += 1;
-      res = (await (undiciFetch as unknown as typeof fetch)(current, {
+      res = await fetchWrapper(current, {
         method: 'GET',
         redirect: 'manual',
         headers: userAgent ? { 'user-agent': userAgent } : undefined,
         signal: controller.signal,
-      })) as unknown as Response;
+      });
     }
 
     const elapsedMs = Date.now() - started;
