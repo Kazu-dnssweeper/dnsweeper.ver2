@@ -91,18 +91,19 @@ export async function resolveDoh(
       u.searchParams.set('type', qtype);
       u.searchParams.set('cd', cd ? '1' : '0');
 
-      const res = await (customFetch || (undiciFetch as unknown as typeof fetch))(u.toString(), {
+      const res = await (customFetch || undiciFetch)(u.toString(), {
         method: 'GET',
         headers: { accept: 'application/dns-json' },
         signal: controller.signal,
       });
-      if (!('status' in res) || (res as any).status >= 500) {
-        throw new Error(`http ${(res as any).status}`);
+      if (res.status >= 500) {
+        throw new Error(`http ${res.status}`);
       }
-      const body = await (res as any).json();
+      interface DohBody { Status: number; Answer?: Array<{ type: number; data: string; TTL?: number }>; AD?: boolean; CD?: boolean }
+      const body: DohBody = await res.json();
       const statusCode: number = body.Status;
       const status = codeToStatus(statusCode);
-      const answers: any[] = Array.isArray(body.Answer) ? body.Answer : [];
+      const answers = Array.isArray(body.Answer) ? body.Answer : [];
       const chain: ResolveHop[] = answers.map((a) => ({ type: TYPE_MAP[a.type] || String(a.type), data: String(a.data), ttl: a.TTL }));
       const ttlMin = chain.reduce((min, h) => (typeof h.ttl === 'number' ? Math.min(min, h.ttl) : min), Number.POSITIVE_INFINITY);
       const elapsedMs = Date.now() - started;

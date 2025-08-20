@@ -1,4 +1,5 @@
 import { fetch as undiciFetch } from 'undici';
+import type { Response } from 'undici';
 import { ProbeOptions, ProbeResult, RedirectHop, TlsInfo } from './types.js';
 import tls from 'node:tls';
 
@@ -53,12 +54,12 @@ export async function probeUrl(url: string, opts: ProbeOptions = {}): Promise<Pr
 
     // Try HEAD first; fallback to GET on non-2xx or error
     const attempt = async (method: 'HEAD' | 'GET'): Promise<Response> => {
-      return (await (undiciFetch as unknown as typeof fetch)(current, {
+      return undiciFetch(current, {
         method,
         redirect: 'manual',
         headers: userAgent ? { 'user-agent': userAgent } : undefined,
         signal: controller.signal,
-      })) as unknown as Response;
+      });
     };
 
     let res: Response | null = null;
@@ -70,22 +71,22 @@ export async function probeUrl(url: string, opts: ProbeOptions = {}): Promise<Pr
     }
 
     while (res && res.status >= 300 && res.status < 400 && redirects < maxRedirects) {
-      const loc = (res as any).headers?.get?.('location');
-      history.push({ url: current, status: (res as any).status });
+      const loc = res.headers.get('location');
+      history.push({ url: current, status: res.status });
       if (!loc) break;
       const next = new URL(loc, current).toString();
       current = next;
       redirects += 1;
-      res = (await (undiciFetch as unknown as typeof fetch)(current, {
+      res = await undiciFetch(current, {
         method: 'GET',
         redirect: 'manual',
         headers: userAgent ? { 'user-agent': userAgent } : undefined,
         signal: controller.signal,
-      })) as unknown as Response;
+      });
     }
 
     const elapsedMs = Date.now() - started;
-    const status = res ? (res as any).status : undefined;
+    const status = res ? res.status : undefined;
     const ok = !!status && status < 400;
     const result: ProbeResult = {
       ok,

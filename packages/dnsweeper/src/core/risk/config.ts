@@ -1,4 +1,10 @@
 import { loadConfig } from '../config/schema.js';
+import type { AppConfig } from '../config/schema.js';
+
+declare global {
+  // eslint-disable-next-line no-var
+  var __DNSWEEPER_CFG__: AppConfig | undefined;
+}
 
 export type RiskThresholds = {
   lowTtlSec: number; // R-004: TTL anomaly threshold
@@ -13,8 +19,8 @@ export function getRiskThresholds(): RiskThresholds {
   if (cached) return cached;
   // Note: loadConfig is async, but here we use best-effort sync cache via env passthrough
   // Callers can warm config separately; fallback to defaults when not available.
-  const risk = (globalThis as any).__DNSWEEPER_CFG__?.risk || {};
-  const n = (v: any, d: number) => (typeof v === 'number' && isFinite(v) ? v : d);
+  const risk = globalThis.__DNSWEEPER_CFG__?.risk || {};
+  const n = (v: unknown, d: number) => (typeof v === 'number' && isFinite(v) ? v : d);
   cached = {
     lowTtlSec: n(risk.lowTtlSec, 30),
     servfailMinAttempts: Math.max(0, n(risk.servfailMinAttempts, 2)),
@@ -27,14 +33,14 @@ export function getRiskThresholds(): RiskThresholds {
 export async function warmConfig() {
   try {
     const cfg = await loadConfig();
-    (globalThis as any).__DNSWEEPER_CFG__ = cfg;
+    globalThis.__DNSWEEPER_CFG__ = cfg || undefined;
   } catch {
     // ignore
   }
 }
 
 export function getRuleOverrides(): { weights: Record<string, number>; disabled: string[] } {
-  const cfg = (globalThis as any).__DNSWEEPER_CFG__ || {};
+  const cfg = globalThis.__DNSWEEPER_CFG__ || {};
   const rw = cfg?.risk?.rules?.weights || {};
   const dis = cfg?.risk?.rules?.disabled || [];
   return { weights: rw, disabled: dis };

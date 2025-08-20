@@ -1,6 +1,7 @@
 import { Command } from 'commander';
 import fs from 'node:fs';
 import path from 'node:path';
+import type { AppConfig } from '../../core/config/schema.js';
 
 async function ensureDir(dir: string) {
   await fs.promises.mkdir(dir, { recursive: true });
@@ -81,9 +82,9 @@ export function registerRulesetCommand(program: Command) {
     .action(async (file: string) => {
       try {
         const raw = await fs.promises.readFile(file, 'utf8');
-        const { RulesetSchema } = await import('../../core/rules/engine.js');
+        const { RulesetSchema } = await import('../../core/rules/engine.js') as typeof import('../../core/rules/engine.js');
         const json = JSON.parse(raw);
-        (RulesetSchema as any).parse(json);
+        RulesetSchema.parse(json);
         // eslint-disable-next-line no-console
         console.log('OK');
       } catch (e) {
@@ -103,7 +104,7 @@ export function registerRulesetCommand(program: Command) {
     .option('--on <rules...>', 'Enable rules by ID (remove from disabled)')
     .action(async (opts: { set?: string[]; off?: string[]; on?: string[] }) => {
       const cfgPath = path.join(process.cwd(), 'dnsweeper.config.json');
-      let cfg: any = {};
+      let cfg: AppConfig = {};
       try { cfg = JSON.parse(await fs.promises.readFile(cfgPath, 'utf8')); } catch {}
       cfg.risk = cfg.risk || {};
       cfg.risk.rules = cfg.risk.rules || {};
@@ -113,8 +114,8 @@ export function registerRulesetCommand(program: Command) {
         // load known RULES for validation
         let KNOWN: Set<string> = new Set();
         try {
-          const mod = await import('../../core/risk/rules.js');
-          const RULES: Record<string, unknown> = (mod as any).RULES || {};
+          const mod = await import('../../core/risk/rules.js') as typeof import('../../core/risk/rules.js');
+          const RULES: Record<string, unknown> = mod.RULES || {};
           KNOWN = new Set(Object.keys(RULES));
         } catch {}
         for (const p of opts.set) {

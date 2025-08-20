@@ -23,7 +23,7 @@ export async function writeXlsx(records: Record<string, unknown>[], file: string
     const wsSummary = wb.addWorksheet('Summary');
     const counts = { low: 0, medium: 0, high: 0 };
     for (const r of records) {
-      const risk = String((r as any).risk || '');
+      const risk = typeof r['risk'] === 'string' ? r['risk'] : String(r['risk'] || '');
       if (risk === 'low') counts.low += 1;
       else if (risk === 'medium') counts.medium += 1;
       else if (risk === 'high') counts.high += 1;
@@ -37,13 +37,13 @@ export async function writeXlsx(records: Record<string, unknown>[], file: string
     wsSummary.addRow({ risk: 'high', count: counts.high });
 
     // High sheet
-    const highs = records.filter((r) => String((r as any).risk) === 'high');
+    const highs = records.filter((r) => String(r['risk']) === 'high');
     const colsHigh = collectColumns(highs);
     const wsHigh = wb.addWorksheet('High');
     wsHigh.columns = colsHigh.map((k) => ({ header: k, key: k }));
     for (const r of highs) {
       const row: Record<string, unknown> = {};
-      for (const c of colsHigh) row[c] = normalizeCell((r as Record<string, unknown>)[c]);
+      for (const c of colsHigh) row[c] = normalizeCell(r[c]);
       wsHigh.addRow(row);
     }
 
@@ -53,7 +53,7 @@ export async function writeXlsx(records: Record<string, unknown>[], file: string
     wsAll.columns = colsAll.map((k) => ({ header: k, key: k }));
     for (const r of records) {
       const row: Record<string, unknown> = {};
-      for (const c of colsAll) row[c] = normalizeCell((r as Record<string, unknown>)[c]);
+      for (const c of colsAll) row[c] = normalizeCell(r[c]);
       wsAll.addRow(row);
     }
   } else {
@@ -63,7 +63,7 @@ export async function writeXlsx(records: Record<string, unknown>[], file: string
     ws.columns = columns.map((k) => ({ header: k, key: k }));
     for (const r of records) {
       const row: Record<string, unknown> = {};
-      for (const c of columns) row[c] = normalizeCell((r as Record<string, unknown>)[c]);
+      for (const c of columns) row[c] = normalizeCell(r[c]);
       ws.addRow(row);
     }
   }
