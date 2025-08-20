@@ -22,5 +22,6 @@
     "keywords": [],
     "author": "",
     "license": "ISC",
-    "description": ""
+    "description": "",
+    "packageManager": "pnpm@9.12.0"
 }
