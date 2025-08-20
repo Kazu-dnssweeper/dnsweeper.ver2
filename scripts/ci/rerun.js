@@ -1,13 +1,15 @@
-/* eslint-disable no-console */
 import https from 'node:https';
 import process from 'node:process';
 import fs from 'node:fs';
 import path from 'node:path';
+import pino from 'pino';
+
+const logger = pino();
 
 const REPO = process.env.CI_REPO || 'Kazu-dnssweeper/dnsweeper.ver2';
 const OWNER_REPO = REPO.split('/');
 if (OWNER_REPO.length !== 2) {
-  console.error('CI_REPO must be in the form owner/repo');
+  logger.error('CI_REPO must be in the form owner/repo');
   process.exit(1);
 }
 
@@ -63,7 +65,7 @@ function post(url, body, token) {
 async function main() {
   const token = readToken();
   if (!token) {
-    console.error('GITHUB_TOKEN required (env or ~/.config/dnsweeper/token).');
+    logger.error('GITHUB_TOKEN required (env or ~/.config/dnsweeper/token).');
     process.exit(1);
   }
 
@@ -85,7 +87,7 @@ async function main() {
     const runs = JSON.parse(await get(runsUrl, token));
     const run = runs.workflow_runs?.[0];
     if (!run) {
-      console.error('No workflow runs found');
+      logger.error('No workflow runs found');
       process.exit(1);
     }
     runId = String(run.id);
@@ -95,17 +97,17 @@ async function main() {
   try {
     if (mode === 'failed') {
       await post(base + '/rerun-failed-jobs', {}, token);
-      console.log(`Requested rerun of FAILED jobs for run ${runId}`);
+      logger.info(`Requested rerun of FAILED jobs for run ${runId}`);
     } else {
       await post(base + '/rerun', {}, token);
-      console.log(`Requested FULL rerun for run ${runId}`);
+      logger.info(`Requested FULL rerun for run ${runId}`);
     }
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e);
     if (/403/.test(msg)) {
-      console.error('Permission denied (Actions: Write required on token).');
+      logger.error('Permission denied (Actions: Write required on token).');
     }
-    console.error(msg);
+    logger.error(msg);
     process.exit(1);
   }
 }

@@ -5,6 +5,9 @@
  *   node scripts/bench/summarize.js --log <file> [--out-json <file>] [--md]
  */
 import fs from 'node:fs';
+import pino from 'pino';
+
+const logger = pino();
 
 function parseArgs() {
   const args = process.argv.slice(2);
@@ -16,7 +19,7 @@ function parseArgs() {
     else if (a === '--md') out.md = true;
   }
   if (!out.log) {
-    console.error('Usage: summarize.js --log <file> [--out-json <file>] [--md]');
+    logger.error('Usage: summarize.js --log <file> [--out-json <file>] [--md]');
     process.exit(2);
   }
   return out;

@@ -2,6 +2,7 @@ import { describe, it, expect, vi } from 'vitest';
 import fs from 'node:fs';
 import path from 'node:path';
 import { Command } from 'commander';
+import logger from '../../src/core/logger.js';
 
 vi.mock('../../src/core/http/probe.js', () => {
   return {
@@ -35,15 +36,15 @@ async function runAnalyze(args: string[]): Promise<{ stdout: string; stderr: str
   registerAnalyzeCommand(program);
   let out = '';
   let err = '';
-  const origLog = console.log;
-  const origErr = console.error;
-  console.log = (...a: any[]) => { out += a.join(' ') + '\n'; };
-  console.error = (...a: any[]) => { err += a.join(' ') + '\n'; };
+  const origInfo = logger.info;
+  const origErr = logger.error;
+  logger.info = ((...a: any[]) => { out += a.join(' ') + '\n'; }) as any;
+  logger.error = ((...a: any[]) => { err += a.join(' ') + '\n'; }) as any;
   try {
     await program.parseAsync(['analyze', ...args], { from: 'user' });
   } finally {
-    console.log = origLog;
-    console.error = origErr;
+    logger.info = origInfo;
+    logger.error = origErr;
   }
   return { stdout: out, stderr: err };
 }

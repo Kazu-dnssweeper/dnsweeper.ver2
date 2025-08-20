@@ -1,8 +1,10 @@
-/* eslint-disable no-console */
 import fs from 'node:fs';
 import path from 'node:path';
 import process from 'node:process';
 import https from 'node:https';
+import pino from 'pino';
+
+const logger = pino();
 
 const REPO = process.env.CI_REPO || 'Kazu-dnssweeper/dnsweeper.ver2';
 let TOKEN = process.env.GITHUB_TOKEN || '';
@@ -13,7 +15,7 @@ if (!TOKEN) {
   } catch {}
 }
 if (!TOKEN) {
-  console.error('GITHUB_TOKEN is required (env GITHUB_TOKEN or ~/.config/dnsweeper/token).');
+  logger.error('GITHUB_TOKEN is required (env GITHUB_TOKEN or ~/.config/dnsweeper/token).');
   process.exit(1);
 }
 
@@ -51,19 +53,19 @@ const runsUrl = `https://api.github.com/repos/${REPO}/actions/runs?per_page=1`;
 const runs = JSON.parse(await get(runsUrl));
 const run = runs.workflow_runs?.[0];
 if (!run) {
-  console.log('No runs found');
+  logger.info('No runs found');
   process.exit(0);
 }
-console.log(`Latest run: id=${run.id} status=${run.status} conclusion=${run.conclusion} url=${run.html_url}`);
+logger.info(`Latest run: id=${run.id} status=${run.status} conclusion=${run.conclusion} url=${run.html_url}`);
 
 const jobsUrl = `https://api.github.com/repos/${REPO}/actions/runs/${run.id}/jobs`;
 const jobs = JSON.parse(await get(jobsUrl));
 for (const job of jobs.jobs || []) {
-  console.log(`JOB: ${job.name} | status=${job.status} conclusion=${job.conclusion}`);
+  logger.info(`JOB: ${job.name} | status=${job.status} conclusion=${job.conclusion}`);
   if (job.conclusion !== 'success') {
     for (const s of job.steps || []) {
       if (['failure', 'timed_out', 'cancelled'].includes(s.conclusion)) {
-        console.log(`  FAIL: ${s.name} | ${s.status}/${s.conclusion}`);
+        logger.info(`  FAIL: ${s.name} | ${s.status}/${s.conclusion}`);
       }
     }
   }

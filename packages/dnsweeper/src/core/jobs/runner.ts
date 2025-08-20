@@ -1,3 +1,5 @@
+import logger from '../logger.js';
+
 export type ProgressStats = {
   processed: number;
   total: number;
@@ -62,8 +64,7 @@ export class JobRunner {
     const s = this.nowStats();
     const line = `[progress] ${s.processed}/${s.total} qps=${s.qps.toFixed(2)} avg_ms=${s.avgLatencyMs.toFixed(0)} fails=${s.failed} eta_s=${s.etaSec.toFixed(0)}`;
     if (this.opts.printer) this.opts.printer(s);
-    // eslint-disable-next-line no-console
-    else console.error(line);
+    else logger.error(line);
   }
 
   done() {

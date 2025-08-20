@@ -1,8 +1,10 @@
 #!/usr/bin/env node
-/* eslint-disable no-console */
 import fs from 'node:fs';
 import path from 'node:path';
 import https from 'node:https';
+import pino from 'pino';
+
+const logger = pino();
 
 const REPO = process.env.CI_REPO || 'Kazu-dnssweeper/dnsweeper.ver2';
 let TOKEN = process.env.GITHUB_TOKEN || '';
@@ -10,7 +12,7 @@ if (!TOKEN) {
   try { TOKEN = fs.readFileSync(path.join(process.env.HOME || '.', '.config', 'dnsweeper', 'token'), 'utf8').trim(); } catch {}
 }
 if (!TOKEN) {
-  console.error('GITHUB_TOKEN is required (env or ~/.config/dnsweeper/token)');
+  logger.error('GITHUB_TOKEN is required (env or ~/.config/dnsweeper/token)');
   process.exit(1);
 }
 
@@ -46,10 +48,10 @@ async function dispatch() {
   let url = `https://api.github.com/repos/${REPO}/actions/workflows/${workflow}/dispatches`;
   try {
     await post(url, { ref });
-    console.log(`Dispatched bench workflow on ${ref} via ${workflow}`);
+    logger.info(`Dispatched bench workflow on ${ref} via ${workflow}`);
     return;
   } catch (e) {
-    console.error(`[warn] direct dispatch failed: ${e.message}`);
+    logger.error(`[warn] direct dispatch failed: ${e.message}`);
   }
   // Fallback: list workflows and find id
   const listUrl = `https://api.github.com/repos/${REPO}/actions/workflows`;
@@ -69,7 +71,7 @@ async function dispatch() {
   if (!id) throw new Error('bench workflow not found in repository');
   url = `https://api.github.com/repos/${REPO}/actions/workflows/${id}/dispatches`;
   await post(url, { ref });
-  console.log(`Dispatched bench workflow on ${ref} via id=${id}`);
+  logger.info(`Dispatched bench workflow on ${ref} via id=${id}`);
 }
 
 await dispatch();

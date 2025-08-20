@@ -7,6 +7,9 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { execSync, spawnSync } from 'node:child_process';
+import pino from 'pino';
+
+const logger = pino();
 
 function parseArgs() {
   const args = process.argv.slice(2);
@@ -45,7 +48,7 @@ function main() {
   if (preset) {
     const cfgDst = path.join(repo, 'dnsweeper.config.json');
     fs.copyFileSync(path.resolve(preset), cfgDst);
-    console.error(`[bench] applied preset: ${preset}`);
+    logger.error(`[bench] applied preset: ${preset}`);
   }
 
   // Build
@@ -68,7 +71,7 @@ function main() {
 
   let count = 0; try { count = JSON.parse(fs.readFileSync(outJson, 'utf8')).length; } catch{}
   const rps = count > 0 ? (count / (elapsed / 1000)) : 0;
-  console.error(`[bench] size=${size} elapsed_ms=${elapsed} rps=${rps.toFixed(1)} output=${outJson}`);
+  logger.error(`[bench] size=${size} elapsed_ms=${elapsed} rps=${rps.toFixed(1)} output=${outJson}`);
 }
 
 main();

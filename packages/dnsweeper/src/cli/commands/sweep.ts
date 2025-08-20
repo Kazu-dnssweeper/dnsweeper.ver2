@@ -1,5 +1,6 @@
 import { Command } from 'commander';
 import fs from 'node:fs';
+import logger from '../../core/logger.js';
 
 type PlanItem = {
   domain: string;
@@ -94,10 +95,10 @@ export function registerSweepCommand(program: Command) {
         } else {
           await fs.promises.writeFile(opts.output, JSON.stringify(sliced, null, 2), 'utf8');
         }
-        console.log(`wrote plan: ${opts.output} (items=${sliced.length}, format=${fmt})`);
+        logger.info(`wrote plan: ${opts.output} (items=${sliced.length}, format=${fmt})`);
       } catch (e) {
         const msg = e instanceof Error ? e.message : String(e);
-        console.error(msg);
+        logger.error(msg);
         process.exit(1);
       }
     });

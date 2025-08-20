@@ -1,6 +1,7 @@
 import { Command } from 'commander';
 import fs from 'node:fs';
 import path from 'node:path';
+import logger from '../../core/logger.js';
 
 async function ensureDir(dir: string) {
   await fs.promises.mkdir(dir, { recursive: true });
@@ -26,12 +27,10 @@ export function registerRulesetCommand(program: Command) {
       const dir = opts.dir || '.tmp/rulesets';
       const files = await listFiles(dir);
       if (!files.length) {
-        // eslint-disable-next-line no-console
-        console.log('(no rulesets)');
+        logger.info('(no rulesets)');
         return;
       }
-      // eslint-disable-next-line no-console
-      console.log(files.join('\n'));
+      logger.info(files.join('\n'));
     });
 
   cmd
@@ -48,8 +47,7 @@ export function registerRulesetCommand(program: Command) {
       // Basic validation: ensure JSON parses
       JSON.parse(buf.toString('utf8'));
       await fs.promises.writeFile(dst, buf);
-      // eslint-disable-next-line no-console
-      console.log(`added: ${dst}`);
+      logger.info(`added: ${dst}`);
     });
 
   cmd
@@ -64,8 +62,7 @@ export function registerRulesetCommand(program: Command) {
         const s = await fs.promises.stat(path.join(dir, f));
         latest = Math.max(latest, s.mtimeMs);
       }
-      // eslint-disable-next-line no-console
-      console.log(
+      logger.info(
         JSON.stringify(
           { count: files.length, latest: latest ? new Date(latest).toISOString() : null },
           null,
@@ -84,12 +81,10 @@ export function registerRulesetCommand(program: Command) {
         const { RulesetSchema } = await import('../../core/rules/engine.js');
         const json = JSON.parse(raw);
         (RulesetSchema as any).parse(json);
-        // eslint-disable-next-line no-console
-        console.log('OK');
+        logger.info('OK');
       } catch (e) {
         const msg = e instanceof Error ? e.message : String(e);
-        // eslint-disable-next-line no-console
-        console.error(msg);
+        logger.error(msg);
         process.exit(1);
       }
     });
@@ -121,13 +116,11 @@ export function registerRulesetCommand(program: Command) {
           const [k, v] = String(p).split('=');
           const num = Number(v);
           if (!/^R-\d{3}$/.test(k) || !isFinite(num) || Math.abs(num) > 100) {
-            // eslint-disable-next-line no-console
-            console.error(`invalid weight pair: ${p}`);
+            logger.error(`invalid weight pair: ${p}`);
             process.exit(1);
           }
           if (KNOWN.size && !KNOWN.has(k)) {
-            // eslint-disable-next-line no-console
-            console.error(`unknown rule id: ${k}`);
+            logger.error(`unknown rule id: ${k}`);
             process.exit(1);
           }
           cfg.risk.rules.weights[k] = num;
@@ -138,7 +131,6 @@ export function registerRulesetCommand(program: Command) {
       if (Array.isArray(opts.on)) for (const r of opts.on) set.delete(String(r));
       cfg.risk.rules.disabled = Array.from(set.values());
       await fs.promises.writeFile(cfgPath, JSON.stringify(cfg, null, 2), 'utf8');
-      // eslint-disable-next-line no-console
-      console.log(`updated: ${cfgPath}`);
+      logger.info(`updated: ${cfgPath}`);
     });
 }

@@ -9,6 +9,7 @@ import { registerAnnotateCommand } from './commands/annotate.js';
 import { registerEchoCommand } from './commands/echo.js';
 import { registerSweepCommand } from './commands/sweep.js';
 import { registerJobsCommand } from './commands/jobs.js';
+import logger from '../core/logger.js';
 
 const program = new Command();
 
@@ -35,7 +36,6 @@ async function main() {
 }
 
 main().catch((err) => {
-  // eslint-disable-next-line no-console
-  console.error(err);
+  logger.error(err);
   process.exit(1);
 });

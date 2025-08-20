@@ -8,6 +8,7 @@ import { loadRuleset, applyRules } from '../../core/rules/engine.js';
 import { isPrivateIPv4, isPrivateIPv6, isSpecialIPv4, mightBePrivateName } from '../../core/net/ip.js';
 import { validateAnalyzeArray } from '../../core/schema/analyze.js';
 import { writeJson } from '../../core/output/json.js';
+import logger from '../../core/logger.js';
 import { JobRunner } from '../../core/jobs/runner.js';
 import { appendAudit, sha256File, getRulesetVersion } from '../../core/audit/audit.js';
 import { probeUrl } from '../../core/http/probe.js';
@@ -177,8 +178,7 @@ export function registerAnalyzeCommand(program: Command) {
           const rsMetaNow = await getRulesetVersion();
           const matchRuleset = JSON.stringify(snap?.meta?.ruleset || {}) === JSON.stringify(rsMetaNow || {});
           if (!matchRuleset) {
-            // eslint-disable-next-line no-console
-            console.error('[warn] snapshot exists but ruleset meta differs (not resuming unless --resume and meta matches)');
+            logger.error('[warn] snapshot exists but ruleset meta differs (not resuming unless --resume and meta matches)');
           }
         } catch {}
 
@@ -194,8 +194,7 @@ export function registerAnalyzeCommand(program: Command) {
                 if (r?.domain) processedSet.add(String(r.domain));
               }
             } else {
-              // eslint-disable-next-line no-console
-              console.error('[warn] resume skipped: snapshot does not match current input/ruleset meta');
+              logger.error('[warn] resume skipped: snapshot does not match current input/ruleset meta');
             }
           } catch {}
         }
@@ -478,8 +477,7 @@ export function registerAnalyzeCommand(program: Command) {
             const s = runner.getStats();
             const elapsed = s.elapsedSec;
             const failRate = s.failRate;
-            // eslint-disable-next-line no-console
-            console.error(
+            logger.error(
               `[summary] exec=${execId} low=${low} medium=${medium} high=${high} elapsed_s=${elapsed.toFixed(
                 2
               )} fail_rate=${(failRate * 100).toFixed(1)}%`
@@ -490,8 +488,7 @@ export function registerAnalyzeCommand(program: Command) {
               const hitRate = total > 0 ? (s.hits / total) * 100 : 0;
               const avgMiss = s.misses > 0 ? s.timeSpentMs / s.misses : 0;
               const estSaved = Math.round(s.hits * avgMiss);
-              // eslint-disable-next-line no-console
-              console.error(
+              logger.error(
                 `[dns] exec=${execId} queries=${total} hits=${s.hits} misses=${s.misses} hit_rate=${hitRate.toFixed(
                   1
                 )}% time_spent_ms=${s.timeSpentMs} est_saved_ms=${estSaved}`
@@ -499,12 +496,11 @@ export function registerAnalyzeCommand(program: Command) {
             }
             if (options.httpCheck) {
               const pairs = Object.entries(httpErrorCounts).map(([k, v]) => `${k}:${v}`).join(' ');
-              console.error(`[http] errors=${pairs}`);
+              logger.error(`[http] errors=${pairs}`);
             }
           }
           if (options.summary) {
-            // eslint-disable-next-line no-console
-            console.log(`summary=${JSON.stringify(summary)}`);
+            logger.info(`summary=${JSON.stringify(summary)}`);
           }
         }
 
@@ -516,12 +512,10 @@ export function registerAnalyzeCommand(program: Command) {
             try {
               validateAnalyzeArray(arr);
             } catch (e) {
-              // eslint-disable-next-line no-console
-              console.error('[warn] analyze output schema validation failed:', e);
+              logger.error('[warn] analyze output schema validation failed:', e);
             }
             await writeJson(arr, options.output, pretty);
-            // eslint-disable-next-line no-console
-            console.log(`wrote JSON: ${options.output}`);
+            logger.info(`wrote JSON: ${options.output}`);
           } else {
             // Without httpCheck, emit minimal objects with domain if available
             const out = (originals.length ? originals : domains.map((d) => ({ domain: d }))).map(
@@ -531,8 +525,7 @@ export function registerAnalyzeCommand(program: Command) {
               })
             );
             await writeJson(out, options.output, !!options.pretty);
-            // eslint-disable-next-line no-console
-            console.log(`wrote JSON: ${options.output}`);
+            logger.info(`wrote JSON: ${options.output}`);
           }
         }
 
@@ -551,20 +544,17 @@ export function registerAnalyzeCommand(program: Command) {
             node: process.version,
           });
           if (!options.quiet) {
-            // eslint-disable-next-line no-console
-            console.error(`[audit] appended -> ${auditPath}`);
+            logger.error(`[audit] appended -> ${auditPath}`);
           }
         } catch {
           // ignore
         }
 
         // Always print row count for compatibility
-        // eslint-disable-next-line no-console
-        console.log(`rows=${rows}`);
+        logger.info(`rows=${rows}`);
       } catch (e) {
         const msg = e instanceof Error ? e.message : String(e);
-        // eslint-disable-next-line no-console
-        console.error(msg);
+        logger.error(msg);
         process.exit(1);
       }
     });

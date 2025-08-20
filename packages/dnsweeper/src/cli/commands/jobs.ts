@@ -1,5 +1,7 @@
 import { Command } from 'commander';
 import fs from 'node:fs';
+import path from 'node:path';
+import logger from '../../core/logger.js';
 
 type JobsStartOptions = {
   snapshot?: string;
@@ -21,8 +23,7 @@ export function registerJobsCommand(program: Command) {
         const processed = Number(meta.processed || (Array.isArray(snap?.results) ? snap.results.length : 0));
         const ts = meta.ts || '';
         const ruleset = meta.ruleset || {};
-        // eslint-disable-next-line no-console
-        console.log(
+        logger.info(
           JSON.stringify(
             { processed, total, ts, ruleset, percent: total > 0 ? Math.round((processed / total) * 100) : null },
             null,
@@ -30,8 +31,7 @@ export function registerJobsCommand(program: Command) {
           )
         );
       } catch (e) {
-        // eslint-disable-next-line no-console
-        console.error('[error] failed to read snapshot:', String(e));
+        logger.error('[error] failed to read snapshot:', String(e));
         process.exit(1);
       }
     });
@@ -44,8 +44,7 @@ export function registerJobsCommand(program: Command) {
     .action(async (input: string, opts: JobsStartOptions) => {
       const snap = opts.snapshot || '.tmp/snapshot.json';
       const cmd = `dnsweeper analyze ${input} --http-check --doh --snapshot ${snap} --resume --summary --output out.json`;
-      // eslint-disable-next-line no-console
-      console.log(cmd);
+      logger.info(cmd);
     });
 
   cmd
@@ -55,13 +54,11 @@ export function registerJobsCommand(program: Command) {
     .action(async (opts: { flag?: string }) => {
       const flag = opts.flag || '.tmp/job.cancel';
       try {
-        await fs.promises.mkdir(require('node:path').dirname(flag), { recursive: true });
+        await fs.promises.mkdir(path.dirname(flag), { recursive: true });
         await fs.promises.writeFile(flag, String(Date.now()), 'utf8');
-        // eslint-disable-next-line no-console
-        console.log(`wrote cancel flag: ${flag}`);
+        logger.info(`wrote cancel flag: ${flag}`);
       } catch (e) {
-        // eslint-disable-next-line no-console
-        console.error('[error] failed to write flag:', String(e));
+        logger.error('[error] failed to write flag:', String(e));
         process.exit(1);
       }
     });

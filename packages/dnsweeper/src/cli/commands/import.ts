@@ -10,6 +10,7 @@ import { normalizeGeneric } from '../../core/parsers/generic.js';
 import { writeErrorsCsv, RowError } from '../../core/parsers/errors.js';
 import { CsvRecord } from '../../types.js';
 import { loadConfig } from '../../core/config/schema.js';
+import logger from '../../core/logger.js';
 
 type ImportOptions = {
   output?: string;
@@ -66,7 +67,7 @@ export function registerImportCommand(program: Command) {
             rows.map((r) => ({ error: reason, row: r })),
             opts.errors || 'errors.csv'
           );
-          console.error(`header validation failed for provider=${provider}: ${reason}`);
+          logger.error(`header validation failed for provider=${provider}: ${reason}`);
           process.exit(1);
         }
         // Unknown headers warning (not required/optional)
@@ -79,8 +80,7 @@ export function registerImportCommand(program: Command) {
             .filter((h) => !allowed.has(h));
           const uniq = Array.from(new Set(unknown));
           if (uniq.length) {
-            // eslint-disable-next-line no-console
-            console.warn(`[warn] unknown headers ignored: ${uniq.join(', ')}`);
+            logger.warn(`[warn] unknown headers ignored: ${uniq.join(', ')}`);
           }
         } catch {}
 
@@ -115,26 +115,21 @@ export function registerImportCommand(program: Command) {
 
         if (opts.errors && errors.length) {
           await writeErrorsCsv(errors, opts.errors);
-          // eslint-disable-next-line no-console
-          console.error(`errors.csv: wrote ${errors.length} failed rows -> ${opts.errors}`);
+          logger.error(`errors.csv: wrote ${errors.length} failed rows -> ${opts.errors}`);
         }
 
         const space = opts.pretty ? 2 : 0;
         const json = JSON.stringify(out, null, space);
         if (opts.output) {
           await fs.promises.writeFile(opts.output, json, { encoding: 'utf8' });
-          // eslint-disable-next-line no-console
-          console.log(`wrote JSON: ${opts.output}`);
+          logger.info(`wrote JSON: ${opts.output}`);
         } else {
-          // eslint-disable-next-line no-console
-          console.log(json);
+          logger.info(json);
         }
-        // eslint-disable-next-line no-console
-        console.error(`[import] provider=${provider} ok=${success} errors=${errors.length}`);
+        logger.error(`[import] provider=${provider} ok=${success} errors=${errors.length}`);
       } catch (e) {
         const msg = e instanceof Error ? e.message : String(e);
-        // eslint-disable-next-line no-console
-        console.error(msg);
+        logger.error(msg);
         process.exit(1);
       }
     });

@@ -1,7 +1,9 @@
 #!/usr/bin/env node
-/* eslint-disable no-console */
 import https from 'node:https';
 import fs from 'node:fs';
+import pino from 'pino';
+
+const logger = pino();
 
 const REPO = process.env.CI_REPO || 'Kazu-dnssweeper/dnsweeper.ver2';
 let TOKEN = process.env.GITHUB_TOKEN || '';
@@ -47,9 +49,9 @@ async function main(){
   for (const m of items) {
     try {
       await post('milestones', { title: m.title, description: m.description });
-      console.log(`Created milestone: ${m.title}`);
+      logger.info(`Created milestone: ${m.title}`);
     } catch (e) {
-      console.error(`[warn] ${m.title}: ${e.message}`);
+      logger.error(`[warn] ${m.title}: ${e.message}`);
     }
   }
 }

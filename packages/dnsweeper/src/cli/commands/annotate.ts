@@ -1,5 +1,6 @@
 import { Command } from 'commander';
 import fs from 'node:fs';
+import logger from '../../core/logger.js';
 
 type AnnotateOptions = {
   output?: string;
@@ -79,16 +80,13 @@ export function registerAnnotateCommand(program: Command) {
         const json = JSON.stringify(out, null, space);
         if (opts.output) {
           await fs.promises.writeFile(opts.output, json, 'utf8');
-          // eslint-disable-next-line no-console
-          console.log(`annotated=${matched}, wrote: ${opts.output}`);
+          logger.info(`annotated=${matched}, wrote: ${opts.output}`);
         } else {
-          // eslint-disable-next-line no-console
-          console.log(json);
+          logger.info(json);
         }
       } catch (e) {
         const msg = e instanceof Error ? e.message : String(e);
-        // eslint-disable-next-line no-console
-        console.error(msg);
+        logger.error(msg);
         process.exit(1);
       }
     });

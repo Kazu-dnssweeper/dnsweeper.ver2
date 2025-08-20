@@ -1,6 +1,7 @@
 ﻿import { Command } from 'commander';
 import fs from 'node:fs';
 import Table from 'cli-table3';
+import logger from '../../core/logger.js';
 
 function colorRisk(risk: string): string {
   if (risk === 'high') return `\x1b[31m${risk}\x1b[0m`;
@@ -81,18 +82,17 @@ export function registerListCommand(program: Command) {
           (acc, r) => { (acc as any)[String((r as any).risk)] += 1; return acc; },
           { low: 0, medium: 0, high: 0 } as Record<string, number>
         );
-        // eslint-disable-next-line no-console
-        console.error(`[dist] low=${dist.low} medium=${dist.medium} high=${dist.high}`);
+        logger.error(`[dist] low=${dist.low} medium=${dist.medium} high=${dist.high}`);
       }
       if (fmt === 'json') {
         const json = JSON.stringify(rows, null, 2);
         if (opts.output) {
           await fs.promises.writeFile(opts.output, json, 'utf8');
-          console.log(`wrote json: ${opts.output}`);
+          logger.info(`wrote json: ${opts.output}`);
         } else {
-          console.log(json);
+          logger.info(json);
         }
-        console.error(`count=${rows.length}`);
+        logger.error(`count=${rows.length}`);
         return;
       }
       if (fmt === 'csv') {
@@ -100,11 +100,11 @@ export function registerListCommand(program: Command) {
         const csv = (Papa as any).unparse(rows, { header: true });
         if (opts.output) {
           await fs.promises.writeFile(opts.output, csv, 'utf8');
-          console.log(`wrote csv: ${opts.output}`);
+          logger.info(`wrote csv: ${opts.output}`);
         } else {
           process.stdout.write(csv + '\n');
         }
-        console.error(`count=${rows.length}`);
+        logger.error(`count=${rows.length}`);
         return;
       }
 
@@ -137,7 +137,7 @@ export function registerListCommand(program: Command) {
         }
         table.push(line);
       }
-      console.log(table.toString());
-      console.log(`count=${rows.length}`);
+      logger.info(table.toString());
+      logger.info(`count=${rows.length}`);
     });
 }

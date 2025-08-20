@@ -3,6 +3,7 @@ import fs from 'node:fs';
 import { writeJson } from '../../core/output/json.js';
 import { writeCsv } from '../../core/output/csv.js';
 import { writeXlsx } from '../../core/output/xlsx.js';
+import logger from '../../core/logger.js';
 
 type ExportOptions = {
   format: 'json' | 'csv' | 'xlsx';
@@ -46,17 +47,14 @@ export function registerExportCommand(program: Command) {
           try { size = (await fs.promises.stat(opts.output)).size; } catch {}
           const mem = process.memoryUsage?.().rss ?? 0;
           const rps = records.length > 0 ? (records.length / (elapsed / 1000)) : 0;
-          // eslint-disable-next-line no-console
-          console.error(
-            `[perf] count=${records.length} elapsed_ms=${elapsed} out_bytes=${size} rss_mb=${(mem / (1024*1024)).toFixed(1)} rps=${rps.toFixed(1)}`
+          logger.error(
+            `[perf] count=${records.length} elapsed_ms=${elapsed} out_bytes=${size} rss_mb=${(mem / (1024 * 1024)).toFixed(1)} rps=${rps.toFixed(1)}`
           );
         }
-        // eslint-disable-next-line no-console
-        console.log(`wrote ${fmt}: ${opts.output}`);
+        logger.info(`wrote ${fmt}: ${opts.output}`);
       } catch (e) {
         const msg = e instanceof Error ? e.message : String(e);
-        // eslint-disable-next-line no-console
-        console.error(msg);
+        logger.error(msg);
         process.exit(1);
       }
     });
