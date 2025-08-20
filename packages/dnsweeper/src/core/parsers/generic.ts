@@ -20,7 +20,7 @@ export function normalizeGeneric(row: Record<string, unknown>): CsvRecord {
   if (content) rec.content = type === 'TXT' ? content.replace(/^\"|\"$/g, '') : content;
   if (ttlRaw !== undefined && ttlRaw !== null && String(ttlRaw).trim() !== '') {
     const ttl = Number.parseInt(String(ttlRaw), 10);
-    if (Number.isFinite(ttl) && ttl > 0) rec.ttl = ttl;
+    if (Number.isFinite(ttl) && ttl >= 0) rec.ttl = ttl;
     else throw new Error('invalid ttl');
   }
   // Basic validation: certain types require content
