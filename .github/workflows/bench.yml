@@ -67,28 +67,16 @@ jobs:
       - name: Bench Standard (100k x1, HTTP on NXDOMAIN)
         run: |
           set -e
-          mkdir -p .tmp
+          mkdir -p .tmp/bench
+          # generate 100k CSV (same as bench.js does)
+          node -e "const fs=require('fs');const n=100000;const a=['domain'];for(let i=0;i<n;i++)a.push(`host${i}.example.com`);fs.mkdirSync('.tmp/bench',{recursive:true});fs.writeFileSync('.tmp/bench/bench-100000.csv',a.join('\n'));"
           echo "Run #1 preset=low-latency size=100000 (standard)";
-          timeout 180m node scripts/bench/bench.js \
-            --size 100000 \
-            --preset examples/presets/low-latency.json \
-            --http --doh \
-            --timeout 500 --dns-timeout 1500 --qps 200 --http-on-nxdomain \
-            2>&1 | tee .tmp/bench_low-latency_100000.standard.log
-      - name: Summarize
-        if: always()
-        run: |
-          node scripts/bench/summarize.js --log .tmp/bench_low-latency_100000.standard.log --out-json .tmp/bench_low-latency_100000.standard.summary.json || true
-          node scripts/bench/summarize.js --log .tmp/bench_low-latency_100000.standard.log --md >> "$GITHUB_STEP_SUMMARY" || true
+          timeout 180m node packages/dnsweeper/dist/cli/index.js analyze .tmp/bench/bench-100000.csv \
+            --http-check --doh --timeout 500 --dns-timeout 1500 --qps 200 --include-original \
+            --http-on-nxdomain --summary --output .tmp/bench/out-100000.standard.json 2>&1 | tee .tmp/bench_low-latency_100000.standard.log
       - name: Upload standard logs
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: bench-logs-low-latency-100000-standard
           path: .tmp/bench_low-latency_100000.standard.log
-      - name: Upload standard summary
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: bench-summary-low-latency-100000-standard
-          path: .tmp/bench_low-latency_100000.standard.summary.json
