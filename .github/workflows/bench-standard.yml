@@ -28,12 +28,8 @@ jobs:
             --size 100000 \
             --preset examples/presets/low-latency.json \
             --http --doh \
-            --timeout 500 --dns-timeout 1500 --qps 200 \
-            2>&1 | sed 's/$/ --http-on-nxdomain/' | tee .tmp/bench_low-latency_100000.standard.cmd
-          # run with extra flag (not supported by bench.js, so call CLI directly)
-          timeout 180m node packages/dnsweeper/dist/cli/index.js analyze .tmp/bench/bench-100000.csv \
-            --http-check --doh --timeout 500 --dns-timeout 1500 --qps 200 --include-original \
-            --http-on-nxdomain --output .tmp/bench/out-100000.standard.json 2>&1 | tee -a .tmp/bench_low-latency_100000.standard.log
+            --timeout 500 --dns-timeout 1500 --qps 200 --http-on-nxdomain \
+            2>&1 | tee .tmp/bench_low-latency_100000.standard.log
       - name: Summarize
         if: always()
         run: |
@@ -44,9 +40,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: bench-logs-low-latency-100000-standard
-          path: |
-            .tmp/bench_low-latency_100000.standard.log
-            .tmp/bench_low-latency_100000.standard.cmd
+          path: .tmp/bench_low-latency_100000.standard.log
       - name: Upload bench summary
         if: always()
         uses: actions/upload-artifact@v4
