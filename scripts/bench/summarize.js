@@ -42,14 +42,21 @@ function main() {
   }
   const sizes = [...new Set(entries.map(e => e.size))].sort((a, b) => a - b);
   const summary = { total_runs: entries.length, sizes: {} };
+  const thresholds = { 100000: 900000 };
   for (const sz of sizes) {
     const arr = entries.filter(e => e.size === sz);
+    const medElapsed = median(arr.map(e => e.elapsed_ms));
+    const medRps = median(arr.map(e => e.rps));
+    const threshold = thresholds[sz] ?? null;
+    const pass = threshold ? medElapsed <= threshold : null;
     summary.sizes[sz] = {
       runs: arr.length,
       elapsed_ms: arr.map(e => e.elapsed_ms),
       rps: arr.map(e => e.rps),
-      median_elapsed_ms: median(arr.map(e => e.elapsed_ms)),
-      median_rps: median(arr.map(e => e.rps)),
+      median_elapsed_ms: medElapsed,
+      median_rps: medRps,
+      threshold_ms: threshold,
+      pass
     };
   }
   if (outJson) fs.writeFileSync(outJson, JSON.stringify(summary, null, 2));
@@ -58,7 +65,8 @@ function main() {
     out += `Bench Summary (from ${log})\n\n`;
     for (const sz of sizes) {
       const s = summary.sizes[sz];
-      out += `- size=${sz}: runs=${s.runs}, median_elapsed_ms=${s.median_elapsed_ms}, median_rps=${s.median_rps.toFixed(1)}\n`;
+      const status = s.pass === null ? '' : (s.pass ? ' PASS' : ' FAIL');
+      out += `- size=${sz}: runs=${s.runs}, median_elapsed_ms=${s.median_elapsed_ms}, median_rps=${s.median_rps.toFixed(1)}${status}\n`;
     }
     process.stdout.write(out);
   } else if (!outJson) {

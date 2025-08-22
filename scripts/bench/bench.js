@@ -10,7 +10,7 @@ import { execSync, spawnSync } from 'node:child_process';
 
 function parseArgs() {
   const args = process.argv.slice(2);
-  const out = { size: 100, preset: '', http: false, doh: false, timeout: 0, dnsTimeout: 0, qps: 0, dnsRetries: 0 };
+  const out = { size: 100, preset: '', http: false, doh: false, timeout: 0, dnsTimeout: 0, qps: 0, dnsRetries: 0, httpOnNxdomain: false };
   for (let i = 0; i < args.length; i++) {
     const a = args[i];
     if (a === '--size') out.size = parseInt(args[++i], 10);
@@ -21,6 +21,7 @@ function parseArgs() {
     else if (a === '--dns-timeout') out.dnsTimeout = parseInt(args[++i], 10);
     else if (a === '--qps') out.qps = parseInt(args[++i], 10);
     else if (a === '--dns-retries') out.dnsRetries = parseInt(args[++i], 10);
+    else if (a === '--http-on-nxdomain') out.httpOnNxdomain = true;
   }
   return out;
 }
@@ -34,45 +35,56 @@ function genCsv(n, dir) {
 }
 
 function main() {
-  const { size, preset, http, doh, timeout, dnsTimeout, qps, dnsRetries } = parseArgs();
+  const { size, preset, http, doh, timeout, dnsTimeout, qps, dnsRetries, httpOnNxdomain } = parseArgs();
   const repo = path.resolve('.');
   const outDir = path.join(repo, '.tmp', 'bench');
   fs.mkdirSync(outDir, { recursive: true });
   const input = genCsv(size, outDir);
   const outJson = path.join(outDir, `out-${size}.json`);
 
-  // Apply preset if provided
   if (preset) {
-    const cfgDst = path.join(repo, 'dnsweeper.config.json');
-    fs.copyFileSync(path.resolve(preset), cfgDst);
-    console.error(`[bench] applied preset: ${preset}`);
+    try {
+      const cfgDst = path.join(repo, 'dnsweeper.config.json');
+      fs.copyFileSync(path.resolve(preset), cfgDst);
+      console.error(`[bench] applied preset: ${preset}`);
+    } catch (e) {
+      console.error(`[bench] failed to apply preset "${preset}": ${e?.message || e}`);
+    }
   }
 
-  // Build
-  execSync('pnpm -C packages/dnsweeper run build', { stdio: 'inherit' });
+  if (!process.env.SKIP_BUILD) {
+    execSync('pnpm -C packages/dnsweeper run build', { stdio: 'inherit' });
+  } else {
+    console.error('[bench] SKIP_BUILD=1, skipping build step');
+  }
 
-  // Run analyze
   const cli = path.join(repo, 'packages/dnsweeper/dist/cli/index.js');
-  const args = ['analyze', input, '--concurrency', '40', '--qps', '0', '--include-original', '--output', outJson];
+  const args = ['analyze', input, '--concurrency', '40', '--include-original', '--output', outJson];
   if (http) args.push('--http-check');
   if (doh) args.push('--doh');
   if (timeout && Number.isFinite(timeout) && timeout > 0) args.push('--timeout', String(timeout));
   if (doh && dnsTimeout && Number.isFinite(dnsTimeout) && dnsTimeout > 0) args.push('--dns-timeout', String(dnsTimeout));
   if (qps && Number.isFinite(qps) && qps > 0) args.push('--qps', String(qps));
   if (doh && dnsRetries && Number.isFinite(dnsRetries) && dnsRetries > 0) args.push('--dns-retries', String(dnsRetries));
+  if (httpOnNxdomain) args.push('--http-on-nxdomain');
+
   const t0 = Date.now();
   const res = spawnSync('node', [cli, ...args], { encoding: 'utf8' });
   const elapsed = Date.now() - t0;
   process.stdout.write(res.stdout || '');
   process.stderr.write(res.stderr || '');
 
-  let count = 0; try { count = JSON.parse(fs.readFileSync(outJson, 'utf8')).length; } catch{}
+  let count = 0; try { count = JSON.parse(fs.readFileSync(outJson, 'utf8')).length; } catch {}
   const rps = count > 0 ? (count / (elapsed / 1000)) : 0;
-  // Write a dedicated summary JSON for robust collection by CI
   const benchSummaryPath = path.join(outDir, `bench-${size}.summary.json`);
-  const benchSummary = { size, elapsed_ms: elapsed, rps: Number(rps.toFixed(2)), output: outJson };
+  const benchSummary = { size, elapsed_ms: elapsed, rps: Number(rps.toFixed(2)), output: outJson, exit_code: res.status ?? null };
   fs.writeFileSync(benchSummaryPath, JSON.stringify(benchSummary, null, 2));
   console.error(`[bench] size=${size} elapsed_ms=${elapsed} rps=${rps.toFixed(1)} output=${outJson} summary=${benchSummaryPath}`);
+
+  if (typeof res.status === 'number' && res.status !== 0) {
+    console.error(`[bench] analyze process exited with code ${res.status}`);
+    process.exit(res.status);
+  }
 }
 
 main();
